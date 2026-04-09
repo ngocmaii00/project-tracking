@@ -1,0 +1,126 @@
+﻿
+D:\Project\Web owner\cwb-project-tracking\frontend\src\components\Layout.jsx
+  49:6   warning  React Hook useEffect has missing dependencies: 'loadNotifications' and 'loadUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  64:15  error    Empty block statement                                                                                                                   no-empty
+  72:6   warning  React Hook useEffect has a missing dependency: 'loadNotifications'. Either include it or remove the dependency array                    react-hooks/exhaustive-deps
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\AIExtractPage.jsx
+   2:23   error    'useNavigate' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+   7:115  error    'user' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               no-unused-vars
+  18:31   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  16 |   useEffect(() => {
+  17 |     Promise.all([loadProjects(), loadDrafts()]).finally(() => setLoading(false));
+> 18 |     if (location.state?.text) setText(location.state.text);
+     |                               ^^^^^^^ Avoid calling setState() directly within an effect
+  19 |     if (location.state?.projectId) setProjectId(location.state.projectId);
+  20 |   }, [location.state]);
+  21 |  react-hooks/set-state-in-effect
+  20:6    warning  React Hook useEffect has missing dependencies: 'loadDrafts' and 'loadProjects'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\AuditTrailPage.jsx
+   22:6   warning  React Hook useEffect has missing dependencies: 'loadProject' and 'loadUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  110:76  error    Empty block statement                                                                                                             no-empty
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\DashboardPage.jsx
+  26:6  warning  React Hook useEffect has missing dependencies: 'loadNotifications' and 'loadProjects'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/exhaustive-deps
+  35:5  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  33 |     const activeProjects = projects.filter(p => p.status === 'active').length;
+  34 |     const highRiskProjects = projects.filter(p => (p.risk_score || 0) > 60).length;
+> 35 |     setStats({ allTasks, doneTasks, blockedTasks, activeProjects, highRiskProjects });
+     |     ^^^^^^^^ Avoid calling setState() directly within an effect
+  36 |   }, [projects]);
+  37 |
+  38 |   const recentNotifs = notifications.filter(n => !n.is_read).slice(0, 5);  react-hooks/set-state-in-effect
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\GanttPage.jsx
+  13:49  error    'containerWidth' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            no-unused-vars
+  60:6   warning  React Hook useEffect has missing dependencies: 'loadAnalytics' and 'loadProject'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/exhaustive-deps
+  65:30  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `currentProject?.project?.start_date`, but the source dependencies were [tasks, criticalIds, showCriticalOnly]. Inferred different dependency than source.
+
+  63 |   const criticalIds = projectAnalytics?.critical_path?.critical_path_ids || [];
+  64 |
+> 65 |   const ganttTasks = useMemo(() => {
+     |                              ^^^^^^^
+> 66 |     return tasks
+     | ^^^^^^^^^^^^^^^^
+> 67 |       .filter(t => (t.due_date || t.start_date) && (!showCriticalOnly || criticalIds.includes(t.id)))
+     ΓÇª
+     | ^^^^^^^^^^^^^^^^
+> 79 |       }));
+     | ^^^^^^^^^^^^^^^^
+> 80 |   }, [tasks, criticalIds, showCriticalOnly]);
+     | ^^^^ Could not preserve existing manual memoization
+  81 |
+  82 |   const { startDate, endDate, totalDays } = useMemo(() => {
+  83 |     if (!ganttTasks.length) return { startDate: new Date(), endDate: addDays(new Date(), 90), totalDays: 90 };  react-hooks/preserve-manual-memoization
+  65:30  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `currentProject?.project?.start_date`, but the source dependencies were [tasks, criticalIds, showCriticalOnly]. Inferred different dependency than source.
+
+  63 |   const criticalIds = projectAnalytics?.critical_path?.critical_path_ids || [];
+  64 |
+> 65 |   const ganttTasks = useMemo(() => {
+     |                              ^^^^^^^
+> 66 |     return tasks
+     | ^^^^^^^^^^^^^^^^
+> 67 |       .filter(t => (t.due_date || t.start_date) && (!showCriticalOnly || criticalIds.includes(t.id)))
+     ΓÇª
+     | ^^^^^^^^^^^^^^^^
+> 79 |       }));
+     | ^^^^^^^^^^^^^^^^
+> 80 |   }, [tasks, criticalIds, showCriticalOnly]);
+     | ^^^^ Could not preserve existing manual memoization
+  81 |
+  82 |   const { startDate, endDate, totalDays } = useMemo(() => {
+  83 |     if (!ganttTasks.length) return { startDate: new Date(), endDate: addDays(new Date(), 90), totalDays: 90 };  react-hooks/preserve-manual-memoization
+  80:6   warning  React Hook useMemo has a missing dependency: 'currentProject?.project?.start_date'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/exhaustive-deps
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\KanbanPage.jsx
+    1:31  error    'useRef' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                     no-unused-vars
+  149:52  error    'reorderTasks' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                      no-unused-vars
+  157:6   warning  React Hook useEffect has missing dependencies: 'loadProject' and 'loadUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\LoginPage.jsx
+  35:13  error  Empty block statement  no-empty
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\MeetingsPage.jsx
+  112:6  warning  React Hook useEffect has missing dependencies: 'loadMeetings' and 'loadProjects'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\ProjectDetailPage.jsx
+  138:9   error    'navigate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                            no-unused-vars
+  139:73  error    'updateTask' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                          no-unused-vars
+  147:6   warning  React Hook useEffect has missing dependencies: 'loadAnalytics', 'loadProject', and 'loadUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\ProjectsPage.jsx
+   71:26  error    'users' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                            no-unused-vars
+  139:6   warning  React Hook useEffect has a missing dependency: 'loadProjects'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\ResourcesPage.jsx
+  17:6  warning  React Hook useEffect has missing dependencies: 'loadProject' and 'loadUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  30:9  error    'workloads' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                         no-unused-vars
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\RisksPage.jsx
+   8:89  error    'users' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                           no-unused-vars
+  14:6   warning  React Hook useEffect has missing dependencies: 'loadProject', 'loadRisks', and 'loadUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Project\Web owner\cwb-project-tracking\frontend\src\pages\SimulationPage.jsx
+  29:6  warning  React Hook useEffect has a missing dependency: 'loadProject'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+Γ£û 31 problems (17 errors, 14 warnings)
+
