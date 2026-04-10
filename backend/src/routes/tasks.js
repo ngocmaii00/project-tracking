@@ -26,7 +26,16 @@ router.get('/', authenticate, async (req, res) => {
     const params = [];
     let paramCount = 1;
     if (project_id) { sqlString += ` AND t.project_id = $${paramCount++}`; params.push(project_id); }
-    if (status) { sqlString += ` AND t.status = $${paramCount++}`; params.push(status); }
+    if (status) {
+      const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statuses.length === 1) {
+        sqlString += ` AND t.status = $${paramCount++}`;
+        params.push(statuses[0]);
+      } else {
+        sqlString += ` AND t.status = ANY($${paramCount++}::text[])`;
+        params.push(statuses);
+      }
+    }
     if (owner_id) { sqlString += ` AND t.owner_id = $${paramCount++}`; params.push(owner_id); }
     if (priority) { sqlString += ` AND t.priority = $${paramCount++}`; params.push(priority); }
     sqlString += ' ORDER BY t.position ASC, t.due_date ASC';

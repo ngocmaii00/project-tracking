@@ -177,6 +177,8 @@ async function initializeDatabase() {
         summary TEXT,
         action_items JSONB DEFAULT '[]',
         decisions JSONB DEFAULT '[]',
+        next_steps_plan JSONB DEFAULT '[]',
+        next_meeting_proposal JSONB DEFAULT '{}',
         quality_score NUMERIC DEFAULT 0,
         meeting_type TEXT DEFAULT 'standup',
         status TEXT DEFAULT 'scheduled' CHECK(status IN ('scheduled','in_progress','completed','cancelled')),
@@ -264,6 +266,60 @@ async function initializeDatabase() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
+      -- Conversations (DM or Group)
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        name TEXT, -- Null for DMs
+        type TEXT DEFAULT 'dm' CHECK(type IN ('dm','group')),
+        avatar TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      -- Conversation Members
+      CREATE TABLE IF NOT EXISTS conversation_members (
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        joined_at TIMESTAMPTZ DEFAULT NOW(),
+        last_read_at TIMESTAMPTZ DEFAULT NOW(),
+        role TEXT DEFAULT 'member' CHECK(role IN ('member','admin')),
+        PRIMARY KEY (conversation_id, user_id)
+      );
+
+      -- Migration for conversation_members
+      ALTER TABLE conversation_members ADD COLUMN IF NOT EXISTS last_read_at TIMESTAMPTZ DEFAULT NOW();
+
+      -- Friendships
+      CREATE TABLE IF NOT EXISTS friendships (
+        id TEXT PRIMARY KEY,
+        user_id1 TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id2 TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status TEXT DEFAULT 'pending' CHECK(status IN ('pending','accepted','blocked')),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_id1, user_id2)
+      );
+
+      -- Messages (Updated to support conversations)
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+        conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+        author_id TEXT NOT NULL REFERENCES users(id),
+        content TEXT NOT NULL,
+        type TEXT DEFAULT 'text' CHECK(type IN ('text','file','ai_suggestion')),
+        file_url TEXT,
+        is_pinned BOOLEAN DEFAULT FALSE,
+        reply_to JSONB,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      -- Migration for existing messages table
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE;
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS file_url TEXT;
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to JSONB;
+
       -- Indexes
       CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
       CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner_id);
@@ -273,6 +329,11 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
       CREATE INDEX IF NOT EXISTS idx_risks_project ON risks(project_id);
       CREATE INDEX IF NOT EXISTS idx_allocations_user ON allocations(user_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+      CREATE INDEX IF NOT EXISTS idx_conv_members_user ON conversation_members(user_id);
+      CREATE INDEX IF NOT EXISTS idx_friendships_users ON friendships(user_id1, user_id2);
     `);
 
     console.log('✅ PostgreSQL schema initialized');

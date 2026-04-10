@@ -24,6 +24,7 @@
     "express": "^5.2.1",
     "express-validator": "^7.3.2",
     "jsonwebtoken": "^9.0.3",
+    "microsoft-cognitiveservices-speech-sdk": "^1.49.0",
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
     "openai": "^6.34.0",

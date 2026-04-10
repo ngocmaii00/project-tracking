@@ -360,4 +360,44 @@ router.post('/projects/:project_id/detect-changes', authenticate, async (req, re
   }
 });
 
+router.get('/personal-reminders', authenticate, async (req, res) => {
+  try {
+    const tasks = await query(`
+      SELECT t.*, p.name as project_name 
+      FROM tasks t 
+      LEFT JOIN projects p ON t.project_id = p.id 
+      WHERE t.owner_id = $1 AND t.status != 'done' AND t.status != 'cancelled'
+      ORDER BY t.due_date ASC
+    `, [req.user.id]);
+
+    const today = new Date();
+    const overdue = tasks.filter(t => t.due_date && new Date(t.due_date) < today);
+    const upcoming = tasks.filter(t => t.due_date && new Date(t.due_date) >= today).slice(0, 3);
+    
+    let reminderText = `Hi ${req.user.name}, here is your personal AI task reminder:\n\n`;
+    
+    if (overdue.length > 0) {
+      reminderText += `🚨 **Overdue Tasks (${overdue.length}):**\n`;
+      overdue.slice(0, 3).forEach(t => {
+        reminderText += `- **[${t.project_name || 'Global'}]** ${t.title} (due: ${new Date(t.due_date).toLocaleDateString()})\n`;
+      });
+      if (overdue.length > 3) reminderText += `- *And ${overdue.length - 3} more...*\n`;
+      reminderText += '\n';
+    } else {
+      reminderText += `✅ Awesome! You have no overdue tasks.\n\n`;
+    }
+    
+    if (upcoming.length > 0) {
+      reminderText += `📅 **Upcoming Deadlines:**\n`;
+      upcoming.forEach(t => {
+        reminderText += `- **[${t.project_name || 'Global'}]** ${t.title} (due: ${new Date(t.due_date).toLocaleDateString()})\n`;
+      });
+    }
+
+    res.json({ reminder: reminderText });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

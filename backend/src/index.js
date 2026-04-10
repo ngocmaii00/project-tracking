@@ -5,6 +5,8 @@ const morgan = require('morgan');
 const http = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+const fs = require('fs');
 
 const { initializeDatabase } = require('./database');
 const { ensureIndex } = require('./services/azureSearch');
@@ -24,7 +26,53 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (msg) => {
     try {
       const data = JSON.parse(msg);
-      if (data.type === 'ping') ws.send(JSON.stringify({ type: 'pong' }));
+      if (data.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong' }));
+      } else if (data.type === 'typing') {
+        // Broadcast typing indicator to all OTHER clients
+        wss.clients.forEach(client => {
+          if (client !== ws && client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'typing',
+              userId,
+              userName: data.userName,
+              conversationId: data.conversationId,
+              isTyping: data.isTyping
+            }));
+          }
+        });
+      } else if (data.type === 'meeting_event') {
+        // Broadcast meeting events (reactions, notes, etc.) to everyone
+        broadcast(data);
+      } else if (data.type === 'chat_message') {
+        const { query, queryOne } = require('./database');
+        const messageId = uuidv4();
+        query('INSERT INTO messages (id, project_id, conversation_id, author_id, content, type, file_url, reply_to) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [
+          messageId, data.projectId || null, data.conversationId || null, userId, data.content, data.msgType || 'text', data.fileUrl || null, data.replyTo ? JSON.stringify(data.replyTo) : null
+        ]).then(async () => {
+          const author = await queryOne('SELECT name, avatar FROM users WHERE id = $1', [userId]);
+          broadcast({
+            type: 'chat_message',
+            id: messageId,
+            projectId: data.projectId,
+            conversationId: data.conversationId,
+            authorId: userId,
+            authorName: author?.name || data.authorName || 'User',
+            authorAvatar: author?.avatar || null,
+            content: data.content,
+            msgType: data.msgType || 'text',
+            fileUrl: data.fileUrl || null,
+            replyTo: data.replyTo || null,
+            createdAt: new Date().toISOString()
+          });
+        }).catch(err => console.error('Chat error:', err));
+      } else if (data.type === 'pin_message') {
+        const { query } = require('./database');
+        query('UPDATE messages SET is_pinned = $1 WHERE id = $2', [data.isPinned, data.messageId])
+          .then(() => {
+            broadcast({ type: 'pin_update', messageId: data.messageId, isPinned: data.isPinned });
+          });
+      }
     } catch { /* ignore */ }
   });
 
@@ -44,6 +92,11 @@ function broadcast(data) {
 app.locals.broadcast = broadcast;
 app.locals.broadcastToUser = broadcastToUser;
 
+// Static uploads
+const UPLOAD_DIR = path.join(__dirname, '../uploads');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+app.use('/uploads', express.static(UPLOAD_DIR));
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }));
 app.use(express.json({ limit: '10mb' }));
@@ -60,6 +113,10 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/files', require('./routes/files'));      // Azure Blob Storage
 app.use('/api/search', require('./routes/search'));    // Azure AI Search
 app.use('/api/powerbi', require('./routes/powerbi')); // Power BI Embedded token
+app.use('/api/chat', require('./routes/chat'));       // Real-time Chat history
+app.use('/api/friends', require('./routes/friends'));
+app.use('/api/upload', require('./routes/upload'));
+app.use('/api/friends', require('./routes/friends')); // Friend & search system
 
 // ─── Power Automate Webhooks (thay thế node-cron) ────────────────────────────
 // Power Automate gọi endpoint này theo lịch (8:00 AM daily)

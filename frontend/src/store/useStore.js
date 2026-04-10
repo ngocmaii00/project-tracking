@@ -201,8 +201,8 @@ const useStore = create(
       set(s => { s.meetings.unshift(data.meeting); });
       return data.meeting;
     },
-    processMeeting: async (id, transcript) => {
-      const { data } = await api.post(`/meetings/${id}/process`, { transcript });
+    processMeeting: async (id, transcript, extra = {}) => {
+      const { data } = await api.post(`/meetings/${id}/process`, { transcript, ...extra });
       toast.success('Meeting processed!');
       return data;
     },

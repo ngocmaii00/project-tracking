@@ -92,7 +92,7 @@ export default function AIExtractPage() {
             </div>
           ) : (
             pendingDrafts.map(draft => {
-              const tasks = JSON.parse(draft.extracted_tasks || '[]');
+              const tasks = typeof draft.extracted_tasks === 'string' ? JSON.parse(draft.extracted_tasks || '[]') : (draft.extracted_tasks || []);
               const p = projects.find(pr => pr.id === draft.project_id);
               
               return (

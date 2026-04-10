@@ -2,10 +2,19 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { query, queryOne } = require('../database');
 const { authenticate } = require('../middleware/auth');
-const { extractionAgent } = require('../services/aiAgents');
+const { meetingIntelligenceAgent, extractionAgent } = require('../services/aiAgents');
+const { transcribeWithDiarization } = require('../services/azureSpeech');
 const { indexDocument } = require('../services/azureSearch');
 
 const router = express.Router();
+
+router.get('/azure-speech-credentials', authenticate, (req, res) => {
+  console.log('GET /azure-speech-credentials called');
+  res.json({
+    key: process.env.AZURE_SPEECH_KEY,
+    region: process.env.AZURE_SPEECH_REGION
+  });
+});
 
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -38,9 +47,16 @@ router.post('/', authenticate, async (req, res) => {
 
 router.post('/:id/process', authenticate, async (req, res) => {
   try {
-    const { transcript } = req.body;
+    let { transcript, use_voice_ai = false } = req.body;
     const meeting = await queryOne('SELECT * FROM meetings WHERE id = $1', [req.params.id]);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+
+    // Step 1: Simulate Speaker Diarization if requested
+    let processedTranscript = transcript;
+    if (use_voice_ai) {
+      const diarized = await transcribeWithDiarization(null); // Simulated diarization
+      processedTranscript = diarized.map(d => `[${d.speaker}]: ${d.text}`).join('\n');
+    }
 
     const projectContext = meeting.project_id
       ? { 
@@ -49,22 +65,46 @@ router.post('/:id/process', authenticate, async (req, res) => {
         }
       : {};
 
-    const result = await extractionAgent(transcript || meeting.transcript || '', 'meeting', projectContext);
+    // Step 2: Advanced Meeting Intelligence (Summary, Decisions, Next Steps, Next Meeting)
+    const intel = await meetingIntelligenceAgent(processedTranscript || meeting.transcript || '', projectContext);
+    
+    // Step 3: Extract Tasks for Human-in-the-loop approval
+    const extraction = await extractionAgent(processedTranscript || meeting.transcript || '', 'meeting', projectContext);
 
-    await query('UPDATE meetings SET transcript = $1, summary = $2, action_items = $3, decisions = $4, quality_score = $5, status = $6 WHERE id = $7',
-      [transcript || meeting.transcript, result.summary, JSON.stringify(result.action_items || []), JSON.stringify(result.key_decisions || []), result.meeting_quality_score || 0.7, 'completed', meeting.id]);
+    await query(`
+      UPDATE meetings 
+      SET transcript = $1, 
+          summary = $2, 
+          action_items = $3, 
+          decisions = $4, 
+          next_steps_plan = $5,
+          next_meeting_proposal = $6,
+          quality_score = $7, 
+          status = $8 
+      WHERE id = $9
+    `, [
+      processedTranscript || meeting.transcript, 
+      intel.summary, 
+      JSON.stringify(intel.action_items || []), 
+      JSON.stringify(intel.decisions || []), 
+      JSON.stringify(intel.next_steps_plan || []),
+      JSON.stringify(intel.next_meeting || {}),
+      intel.participation_score || 0.8, 
+      'completed', 
+      meeting.id
+    ]);
 
     if (meeting.project_id) {
       const draftId = uuidv4();
       await query('INSERT INTO ai_drafts (id, project_id, source_type, source_content, extracted_tasks, confidence_score, ai_summary, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-        [draftId, meeting.project_id, 'meeting', transcript || '', JSON.stringify(result.extracted_tasks), result.overall_confidence, result.summary, req.user.id]);
-      result.draft_id = draftId;
+        [draftId, meeting.project_id, 'meeting', processedTranscript || '', JSON.stringify(extraction.extracted_tasks), extraction.overall_confidence, intel.summary, req.user.id]);
+      intel.draft_id = draftId;
     }
 
     const updatedMeeting = await queryOne('SELECT * FROM meetings WHERE id = $1', [req.params.id]);
     await indexDocument({ ...updatedMeeting, type: 'meeting' });
 
-    res.json({ result, meeting: updatedMeeting });
+    res.json({ result: intel, meeting: updatedMeeting });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

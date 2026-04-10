@@ -13,12 +13,13 @@ const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/projects', icon: FolderKanban, label: 'Projects' },
   ]},
+  { section: 'Collaboration', items: [
+    { to: '/chat', icon: MessageSquare, label: 'Chat Workspace' },
+    { to: '/meetings', icon: Calendar, label: 'Meetings Hub' },
+  ]},
   { section: 'AI Tools', items: [
     { to: '/ai/extract', icon: Brain, label: 'AI Extraction' },
-    { to: '/ai/assistant', icon: MessageSquare, label: 'AI Chat' },
-  ]},
-  { section: 'Management', items: [
-    { to: '/meetings', icon: Calendar, label: 'Meetings' },
+    { to: '/ai/assistant', icon: Zap, label: 'AI Assistant' },
   ]},
 ];
 

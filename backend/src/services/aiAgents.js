@@ -596,6 +596,43 @@ Historical: ${JSON.stringify(historicalData)}`;
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MEETING INTELLIGENCE AGENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function meetingIntelligenceAgent(transcript, projectContext) {
+  const systemPrompt = `You are a Meeting Intelligence AI Agent on Azure AI Foundry.
+Analyze the meeting transcript (which includes speaker diarization).
+Return JSON:
+{
+  "summary": "comprehensive executive summary",
+  "key_takeaways": ["point 1", "point 2"],
+  "decisions": ["decision 1", "decision 2"],
+  "action_items": ["clear action items with owners"],
+  "next_steps_plan": [
+    { "task": "string", "owner": "string", "due_date": "YYYY-MM-DD", "priority": "high|medium|low" }
+  ],
+  "next_meeting": {
+    "proposed_at": "ISO-8601 string",
+    "proposed_topic": "string",
+    "agenda": ["list of items"]
+  },
+  "sentiment": "positive|neutral|negative",
+  "participation_score": 0.0-1.0
+}`;
+
+  const userPrompt = `Project Context: ${JSON.stringify(projectContext)}
+Transcript:
+${JSON.stringify(transcript)}
+
+Generate a detailed meeting report.`;
+
+  const aiResult = await runAgent(systemPrompt, userPrompt);
+  if (aiResult) return aiResult;
+
+  throw new Error("Azure AI Foundry agent could not process the request. Please check your credentials or try again later.");
+}
+
 module.exports = {
   extractionAgent,
   riskAnalysisAgent,
@@ -607,4 +644,5 @@ module.exports = {
   conversationAgent,
   changeDetectionAgent,
   timelinePredictionAgent,
+  meetingIntelligenceAgent,
 };

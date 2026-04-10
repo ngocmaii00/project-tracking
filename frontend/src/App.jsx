@@ -15,6 +15,8 @@ import SimulationPage from './pages/SimulationPage';
 import ResourcesPage from './pages/ResourcesPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import AuditTrailPage from './pages/AuditTrailPage';
+import MeetingRoomPage from './pages/MeetingRoomPage';
+import ChatPage from './pages/ChatPage';
 import './index.css';
 
 function ProtectedRoute({ children }) {
@@ -52,6 +54,8 @@ export default function App() {
           <Route path="ai/extract" element={<AIExtractPage />} />
           <Route path="ai/assistant" element={<AIAssistantPage />} />
           <Route path="meetings" element={<MeetingsPage />} />
+          <Route path="chat" element={<ChatPage />} />
+          <Route path="meetings/:id/room" element={<MeetingRoomPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
