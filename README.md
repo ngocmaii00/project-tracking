@@ -303,66 +303,7 @@ az search service create \
   --sku basic
 ```
 
-### 4. Cấu hình biến môi trường
-
-**`backend/.env`**
-```env
-PORT=3001
-FRONTEND_URL=http://localhost:5173
-
-# JWT
-JWT_SECRET=your_super_secret_jwt_key_here
-
-# Azure PostgreSQL
-PG_HOST=cwb-postgres.postgres.database.azure.com
-PG_PORT=5432
-PG_DATABASE=cwbdb
-PG_USER=cwbadmin
-PG_PASSWORD=your_postgres_password
-PG_SSL=true
-
-# Azure AI Foundry
-AZURE_OPENAI_ENDPOINT=https://your-foundry.openai.azure.com/
-AZURE_OPENAI_API_KEY=your_azure_openai_key
-AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
-AZURE_OPENAI_API_VERSION=2024-10-21
-
-# Azure Cosmos DB
-COSMOS_ENDPOINT=https://cwb-cosmos.documents.azure.com:443/
-COSMOS_KEY=your_cosmos_primary_key
-COSMOS_DATABASE=cwb_intelligence
-
-# Azure Blob Storage
-AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https...
-AZURE_STORAGE_CONTAINER=project-files
-AZURE_STORAGE_ACCOUNT_NAME=your_storage_account
-AZURE_STORAGE_ACCOUNT_KEY=your_storage_key
-
-# Azure AI Search
-AZURE_SEARCH_ENDPOINT=https://cwb-ai-search.search.windows.net
-AZURE_SEARCH_API_KEY=your_search_api_key
-AZURE_SEARCH_INDEX=cwb-projects-index
-
-# Power BI Embedded
-POWERBI_CLIENT_ID=your_app_client_id
-POWERBI_CLIENT_SECRET=your_app_client_secret
-POWERBI_TENANT_ID=your_tenant_id
-POWERBI_WORKSPACE_ID=your_workspace_id
-POWERBI_REPORT_ID=your_default_report_id
-
-# Power Automate Webhooks & GitHub
-POWER_AUTOMATE_SECRET=your_shared_webhook_secret
-GITHUB_TOKEN=ghp_your_github_token
-```
-
-**`frontend/.env`**
-```env
-VITE_API_URL=http://localhost:3001
-VITE_WS_URL=ws://localhost:3001
-VITE_POWERBI_EMBED_URL=https://app.powerbi.com/reportEmbed
-```
-
-### 5. Khởi động
+### 4. Khởi động
 
 ```bash
 # Terminal 1 — Backend
@@ -371,21 +312,6 @@ cd backend && npm run dev
 # Terminal 2 — Frontend
 cd frontend && npm run dev
 ```
-
-### 6. Seed dữ liệu demo
-
-```bash
-curl -X POST http://localhost:3001/api/seed
-```
-
-**Tài khoản demo:**
-| Email | Password | Role |
-|-------|----------|------|
-| `admin@cwb.com` | `password123` | Admin |
-| `pm@cwb.com` | `password123` | Project Manager |
-| `dev1@cwb.com` | `password123` | Contributor |
-
----
 
 ## 🔌 API Endpoints
 
