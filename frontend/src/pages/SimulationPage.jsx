@@ -94,7 +94,7 @@ export default function SimulationPage() {
               <div className="card-title" style={{ marginBottom: 12 }}>📜 Past Simulations</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {history.slice(0, 5).map(s => {
-                  const r = JSON.parse(s.result || '{}');
+                  const r = typeof s.result === 'string' ? JSON.parse(s.result || '{}') : (s.result || {});
                   return (
                     <div
                       key={s.id}

@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
-const db = require('../database');
+const { queryOne } = require('../database'); // PostgreSQL thay vì SQLite
 
 const JWT_SECRET = process.env.JWT_SECRET || 'cwb-project-intelligence-secret-2024';
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });
@@ -12,7 +12,8 @@ function authenticate(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id);
+    // PostgreSQL async query thay vì SQLite sync
+    const user = await queryOne('SELECT * FROM users WHERE id = $1', [decoded.id]);
     if (!user) return res.status(401).json({ error: 'User not found' });
     req.user = user;
     next();

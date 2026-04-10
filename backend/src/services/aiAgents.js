@@ -1,39 +1,60 @@
 /**
  * AI Agent Service — Core intelligence layer
- * Handles: Extraction, Risk Analysis, Simulation, Critical Path, Resource Optimization
+ * Azure AI Foundry + Microsoft Agent Framework
+ * Thay thế: openai SDK trực tiếp → @azure/openai qua Azure AI Foundry endpoint
+ *
+ * Agents: Extraction, Risk Analysis, Simulation, Critical Path,
+ *         Resource Optimization, Standup, Behavioral, Timeline,
+ *         Change Detection, Conversation
  */
 
-const { OpenAI } = require('openai');
+const { AzureOpenAI } = require('openai');
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Azure AI Foundry client (thay thế OpenAI SDK)
+const foundry = process.env.AZURE_OPENAI_ENDPOINT
+  ? new AzureOpenAI({
+      endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+      apiKey: process.env.AZURE_OPENAI_API_KEY,
+      apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-10-21',
+      deployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini',
+    })
   : null;
 
-async function callAI(systemPrompt, userPrompt, jsonMode = true) {
-  if (!openai) {
-    return null; // Will use rule-based fallback
+const DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini';
+
+/**
+ * Microsoft Agent Framework — orchestration helper
+ * Gọi Azure AI Foundry với system/user prompt, trả JSON hoặc text
+ */
+async function runAgent(systemPrompt, userPrompt, jsonMode = true) {
+  if (!foundry) {
+    return null; // fallback sang rule-based
   }
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const response = await foundry.chat.completions.create({
+      model: DEPLOYMENT,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: userPrompt },
       ],
       response_format: jsonMode ? { type: 'json_object' } : undefined,
       temperature: 0.3,
-      max_tokens: 4000
+      max_tokens: 4000,
     });
     const content = response.choices[0].message.content;
     return jsonMode ? JSON.parse(content) : content;
   } catch (err) {
-    console.error('AI call failed:', err.message);
+    console.error('Azure AI Foundry agent call failed:', err.message);
     return null;
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// EXTRACTION AGENT
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function extractionAgent(text, sourceType, projectContext) {
-  const systemPrompt = `You are an expert project management AI. Extract structured task information from ${sourceType} content.
+  const systemPrompt = `You are an expert project management AI running on Azure AI Foundry. Extract structured task information from ${sourceType} content.
 Return JSON with this exact structure:
 {
   "extracted_tasks": [
@@ -67,7 +88,7 @@ ${text}
 
 Extract all task-related information. Be thorough and precise.`;
 
-  const aiResult = await callAI(systemPrompt, userPrompt);
+  const aiResult = await runAgent(systemPrompt, userPrompt);
   if (aiResult) return aiResult;
 
   return ruleBasedExtraction(text, sourceType);
@@ -76,21 +97,18 @@ Extract all task-related information. Be thorough and precise.`;
 function ruleBasedExtraction(text, sourceType) {
   const tasks = [];
   const lines = text.split('\n').filter(l => l.trim());
-  
   const actionWords = ['need to', 'will', 'should', 'must', 'todo', 'action:', 'assigned to', 'complete', 'finish', 'implement', 'develop', 'review', 'update', 'create', 'fix', 'deploy'];
   const priorityWords = { critical: ['urgent', 'asap', 'immediately', 'critical', 'blocker'], high: ['important', 'priority', 'soon', 'high'], low: ['nice to have', 'low', 'optional', 'later'] };
-  
-  lines.forEach((line, i) => {
+
+  lines.forEach((line) => {
     const lower = line.toLowerCase();
     if (actionWords.some(w => lower.includes(w))) {
       let priority = 'medium';
       for (const [p, words] of Object.entries(priorityWords)) {
         if (words.some(w => lower.includes(w))) { priority = p; break; }
       }
-      
       const dateMatch = line.match(/\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})\b/);
       const ownerMatch = line.match(/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b(?:\s+will|\s+should|\s+to)/);
-      
       tasks.push({
         title: line.trim().substring(0, 100),
         description: line.trim(),
@@ -103,7 +121,7 @@ function ruleBasedExtraction(text, sourceType) {
         change_type: 'new',
         confidence: 0.6,
         evidence: line.trim(),
-        reasoning: 'Rule-based extraction detected action keyword'
+        reasoning: 'Rule-based extraction detected action keyword',
       });
     }
   });
@@ -115,12 +133,16 @@ function ruleBasedExtraction(text, sourceType) {
     action_items: tasks.map(t => t.title),
     ambiguities: [],
     overall_confidence: 0.65,
-    meeting_quality_score: 0.7
+    meeting_quality_score: 0.7,
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RISK ANALYSIS AGENT
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function riskAnalysisAgent(tasks, project, resources) {
-  const systemPrompt = `You are a risk management AI for software projects. Analyze the project for risks.
+  const systemPrompt = `You are a risk management AI agent (Microsoft Agent Framework / Azure AI Foundry). Analyze the project for risks.
 Return JSON:
 {
   "project_risk_score": 0-100,
@@ -138,9 +160,7 @@ Return JSON:
       "confidence": 0.0-1.0
     }
   ],
-  "overloaded_resources": [
-    { "user_id": "string", "workload_pct": 0-200, "tasks": ["task ids"] }
-  ],
+  "overloaded_resources": [{ "user_id": "string", "workload_pct": 0-200, "tasks": ["task ids"] }],
   "critical_warnings": ["string"],
   "health_score": 0-100,
   "overall_reasoning": "explanation"
@@ -154,9 +174,8 @@ Resources: ${JSON.stringify(resources)}
 
 Analyze all risks including schedule, resource overload, dependency conflicts, and scope issues.`;
 
-  const aiResult = await callAI(systemPrompt, userPrompt);
+  const aiResult = await runAgent(systemPrompt, userPrompt);
   if (aiResult) return aiResult;
-
   return ruleBasedRiskAnalysis(tasks, project, resources);
 }
 
@@ -167,8 +186,7 @@ function ruleBasedRiskAnalysis(tasks, project, resources) {
 
   const overdueTasks = tasks.filter(t => t.due_date && new Date(t.due_date) < today && t.status !== 'done');
   if (overdueTasks.length > 0) {
-    const r = { title: 'Overdue Tasks', description: `${overdueTasks.length} tasks past deadline`, category: 'schedule', probability: 0.9, impact: 0.8, risk_score: 72, affected_tasks: overdueTasks.map(t => t.id), mitigation: 'Review and reschedule overdue tasks', early_warning: 'Tasks past deadline', confidence: 0.95 };
-    risks.push(r);
+    risks.push({ title: 'Overdue Tasks', description: `${overdueTasks.length} tasks past deadline`, category: 'schedule', probability: 0.9, impact: 0.8, risk_score: 72, affected_tasks: overdueTasks.map(t => t.id), mitigation: 'Review and reschedule overdue tasks', early_warning: 'Tasks past deadline', confidence: 0.95 });
     riskScore += 30;
   }
 
@@ -197,32 +215,26 @@ function ruleBasedRiskAnalysis(tasks, project, resources) {
     overloaded_resources: overloaded,
     critical_warnings: overdueTasks.length > 0 ? [`${overdueTasks.length} tasks are overdue`] : [],
     health_score: Math.max(0, 100 - riskScore),
-    overall_reasoning: 'Rule-based risk analysis completed'
+    overall_reasoning: 'Rule-based risk analysis completed',
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SIMULATION AGENT
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function simulationAgent(scenario, currentPlan, tasks) {
-  const systemPrompt = `You are a project simulation AI. Analyze what would happen if the described scenario occurred.
+  const systemPrompt = `You are a project simulation AI agent on Azure AI Foundry. Analyze what would happen if the described scenario occurred.
 Return JSON:
 {
-  "scenario_summary": "what the scenario entails",
-  "timeline_impact": {
-    "days_added": 0,
-    "new_end_date": "YYYY-MM-DD",
-    "critical_path_changed": true|false
-  },
-  "affected_tasks": [
-    { "task_id": "string", "task_title": "string", "impact": "description", "new_due_date": "YYYY-MM-DD or null" }
-  ],
-  "resource_impact": [
-    { "user": "string", "impact": "description", "new_workload_pct": 0-200 }
-  ],
+  "scenario_summary": "string",
+  "timeline_impact": { "days_added": 0, "new_end_date": "YYYY-MM-DD", "critical_path_changed": true },
+  "affected_tasks": [{ "task_id": "string", "task_title": "string", "impact": "string", "new_due_date": "YYYY-MM-DD or null" }],
+  "resource_impact": [{ "user": "string", "impact": "string", "new_workload_pct": 0-200 }],
   "risk_delta": { "before": 0-100, "after": 0-100, "change": "increased|decreased|stable" },
   "recommendations": ["actionable recommendations"],
-  "alternative_options": [
-    { "option": "description", "pros": ["string"], "cons": ["string"], "timeline_impact_days": 0 }
-  ],
-  "trade_off_summary": "brief PM-friendly summary"
+  "alternative_options": [{ "option": "string", "pros": [], "cons": [], "timeline_impact_days": 0 }],
+  "trade_off_summary": "PM-friendly summary"
 }`;
 
   const userPrompt = `Scenario: "${scenario}"
@@ -230,7 +242,7 @@ Current Plan End Date: ${currentPlan.end_date}
 Risk Score: ${currentPlan.risk_score}
 Tasks: ${JSON.stringify(tasks.slice(0, 50))}`;
 
-  const aiResult = await callAI(systemPrompt, userPrompt);
+  const aiResult = await runAgent(systemPrompt, userPrompt);
   if (aiResult) return aiResult;
 
   return {
@@ -242,24 +254,26 @@ Tasks: ${JSON.stringify(tasks.slice(0, 50))}`;
     recommendations: ['Review affected tasks', 'Update stakeholders', 'Consider resource reallocation'],
     alternative_options: [
       { option: 'Extend timeline', pros: ['Less pressure'], cons: ['Delayed delivery'], timeline_impact_days: 5 },
-      { option: 'Add resources', pros: ['Maintain timeline'], cons: ['Higher cost'], timeline_impact_days: 0 }
+      { option: 'Add resources', pros: ['Maintain timeline'], cons: ['Higher cost'], timeline_impact_days: 0 },
     ],
-    trade_off_summary: 'Simulation requires AI configuration for detailed analysis'
+    trade_off_summary: 'Configure Azure AI Foundry for detailed simulation analysis',
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRITICAL PATH AGENT (deterministic — không cần AI)
+// ─────────────────────────────────────────────────────────────────────────────
 
 function criticalPathAgent(tasks) {
   const taskMap = {};
   tasks.forEach(t => { taskMap[t.id] = { ...t, deps: JSON.parse(t.dependencies || '[]'), earlyStart: 0, earlyFinish: 0, lateStart: 0, lateFinish: 0, slack: 0 }; });
 
   const sorted = topologicalSort(tasks, taskMap);
-  
+
   sorted.forEach(id => {
     const t = taskMap[id];
     if (!t) return;
-    const depFinish = t.deps.reduce((max, depId) => {
-      return taskMap[depId] ? Math.max(max, taskMap[depId].earlyFinish) : max;
-    }, 0);
+    const depFinish = t.deps.reduce((max, depId) => taskMap[depId] ? Math.max(max, taskMap[depId].earlyFinish) : max, 0);
     t.earlyStart = depFinish;
     t.earlyFinish = t.earlyStart + (t.estimated_hours || 8) / 8;
   });
@@ -282,19 +296,12 @@ function criticalPathAgent(tasks) {
     return deps.length > 2 || tasks.filter(other => JSON.parse(other.dependencies || '[]').includes(t.id)).length > 2;
   });
 
-  return {
-    critical_path_ids: criticalPath,
-    critical_path_tasks: criticalPath.map(id => taskMap[id]).filter(Boolean),
-    bottleneck_tasks: bottlenecks,
-    project_duration_days: projectEnd,
-    task_details: taskMap
-  };
+  return { critical_path_ids: criticalPath, critical_path_tasks: criticalPath.map(id => taskMap[id]).filter(Boolean), bottleneck_tasks: bottlenecks, project_duration_days: projectEnd, task_details: taskMap };
 }
 
 function topologicalSort(tasks, taskMap) {
   const visited = new Set();
   const result = [];
-  
   function visit(id) {
     if (visited.has(id)) return;
     visited.add(id);
@@ -302,50 +309,38 @@ function topologicalSort(tasks, taskMap) {
     if (t) t.deps.forEach(dep => visit(dep));
     result.push(id);
   }
-  
   tasks.forEach(t => visit(t.id));
   return result;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RESOURCE OPTIMIZATION AGENT
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function resourceOptimizationAgent(tasks, users, project) {
-  const systemPrompt = `You are a resource optimization AI for project management. Suggest optimal task assignments.
+  const systemPrompt = `You are a resource optimization AI agent (Azure AI Foundry). Suggest optimal task assignments.
 Return JSON:
 {
-  "suggestions": [
-    {
-      "task_id": "string",
-      "task_title": "string",
-      "current_owner": "string or null",
-      "suggested_owner": "string",
-      "reason": "explanation",
-      "confidence": 0.0-1.0,
-      "impact": "workload improvement description"
-    }
-  ],
-  "workload_summary": [
-    { "user_id": "string", "name": "string", "current_load_pct": 0-200, "optimized_load_pct": 0-200, "tasks_count": 0 }
-  ],
+  "suggestions": [{ "task_id": "string", "task_title": "string", "current_owner": "string or null", "suggested_owner": "string", "reason": "string", "confidence": 0.0-1.0, "impact": "string" }],
+  "workload_summary": [{ "user_id": "string", "name": "string", "current_load_pct": 0-200, "optimized_load_pct": 0-200, "tasks_count": 0 }],
   "optimization_score": 0-100,
   "recommendations": ["string"],
-  "schedule_adjustments": [
-    { "task_id": "string", "suggestion": "delay|split|reassign|expedite", "details": "string" }
-  ]
+  "schedule_adjustments": [{ "task_id": "string", "suggestion": "delay|split|reassign|expedite", "details": "string" }]
 }`;
 
   const userPrompt = `Project: ${JSON.stringify(project)}
 Team Members: ${JSON.stringify(users.map(u => ({ id: u.id, name: u.name, role: u.role, skills: u.skills })))}
 Tasks: ${JSON.stringify(tasks)}`;
 
-  const aiResult = await callAI(systemPrompt, userPrompt);
+  const aiResult = await runAgent(systemPrompt, userPrompt);
   if (aiResult) return aiResult;
-
   return ruleBasedResourceOptimization(tasks, users);
 }
 
 function ruleBasedResourceOptimization(tasks, users) {
   const ownerLoad = {};
   users.forEach(u => { ownerLoad[u.id] = { user: u, tasks: [], hours: 0 }; });
-  
+
   tasks.filter(t => t.status !== 'done').forEach(t => {
     if (t.owner_id && ownerLoad[t.owner_id]) {
       ownerLoad[t.owner_id].tasks.push(t);
@@ -362,15 +357,7 @@ function ruleBasedResourceOptimization(tasks, users) {
       if (underloadedUser) {
         const taskToMove = data.tasks.find(t => t.priority !== 'critical');
         if (taskToMove) {
-          suggestions.push({
-            task_id: taskToMove.id,
-            task_title: taskToMove.title,
-            current_owner: data.user.name,
-            suggested_owner: underloadedUser.user.name,
-            reason: `${data.user.name} is overloaded (${Math.round(data.hours / 40 * 100)}%), ${underloadedUser.user.name} has capacity`,
-            confidence: 0.75,
-            impact: 'Better workload balance'
-          });
+          suggestions.push({ task_id: taskToMove.id, task_title: taskToMove.title, current_owner: data.user.name, suggested_owner: underloadedUser.user.name, reason: `${data.user.name} is overloaded (${Math.round(data.hours / 40 * 100)}%), ${underloadedUser.user.name} has capacity`, confidence: 0.75, impact: 'Better workload balance' });
         }
       }
     }
@@ -378,32 +365,28 @@ function ruleBasedResourceOptimization(tasks, users) {
 
   return {
     suggestions,
-    workload_summary: Object.values(ownerLoad).map(o => ({
-      user_id: o.user.id,
-      name: o.user.name,
-      current_load_pct: Math.round(o.hours / 40 * 100),
-      optimized_load_pct: Math.round(o.hours / 40 * 100),
-      tasks_count: o.tasks.length
-    })),
+    workload_summary: Object.values(ownerLoad).map(o => ({ user_id: o.user.id, name: o.user.name, current_load_pct: Math.round(o.hours / 40 * 100), optimized_load_pct: Math.round(o.hours / 40 * 100), tasks_count: o.tasks.length })),
     optimization_score: 70,
     recommendations: suggestions.length > 0 ? suggestions.map(s => s.reason) : ['Workload appears balanced'],
-    schedule_adjustments: []
+    schedule_adjustments: [],
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DAILY STANDUP GENERATOR (thay thế node-cron trigger, giờ dùng Power Automate)
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function dailyStandupGenerator(project, tasks, recentChanges) {
-  const systemPrompt = `You are an AI that generates concise, useful daily standup agendas for project teams.
+  const systemPrompt = `You are an AI standup coordinator agent (Azure AI Foundry). Generate a concise daily standup agenda.
 Return JSON:
 {
   "date": "today",
-  "yesterday_summary": ["what was completed"],
-  "today_focus": ["what needs to happen today"],
-  "blockers": ["issues needing immediate attention"],
-  "risks_to_discuss": ["risk items"],
-  "team_spotlight": "motivational team message",
-  "agenda_items": [
-    { "topic": "string", "presenter": "string or null", "duration_min": 5, "priority": "high|medium|low" }
-  ],
+  "yesterday_summary": ["string"],
+  "today_focus": ["string"],
+  "blockers": ["string"],
+  "risks_to_discuss": ["string"],
+  "team_spotlight": "motivational message",
+  "agenda_items": [{ "topic": "string", "presenter": "string or null", "duration_min": 5, "priority": "high|medium|low" }],
   "key_metrics": { "tasks_done": 0, "tasks_in_progress": 0, "tasks_blocked": 0, "sprint_health": "on_track|at_risk|off_track" },
   "suggested_duration_minutes": 15
 }`;
@@ -414,7 +397,7 @@ Project: ${project.name}
 Recent Changes (last 24h): ${JSON.stringify(recentChanges.slice(0, 20))}
 Active Tasks: ${JSON.stringify(tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').slice(0, 30))}`;
 
-  const aiResult = await callAI(systemPrompt, userPrompt);
+  const aiResult = await runAgent(systemPrompt, userPrompt);
   if (aiResult) return aiResult;
 
   const done = tasks.filter(t => t.status === 'done').length;
@@ -432,37 +415,23 @@ Active Tasks: ${JSON.stringify(tasks.filter(t => t.status !== 'done' && t.status
     agenda_items: [
       { topic: 'Progress Updates', presenter: null, duration_min: 5, priority: 'high' },
       { topic: 'Blocker Review', presenter: null, duration_min: 5, priority: 'high' },
-      { topic: 'Today\'s Priorities', presenter: null, duration_min: 5, priority: 'medium' }
+      { topic: "Today's Priorities", presenter: null, duration_min: 5, priority: 'medium' },
     ],
-    key_metrics: {
-      tasks_done: done,
-      tasks_in_progress: inProgress,
-      tasks_blocked: blocked,
-      sprint_health: blocked > 0 || overdue > 0 ? 'at_risk' : 'on_track'
-    },
-    suggested_duration_minutes: 15
+    key_metrics: { tasks_done: done, tasks_in_progress: inProgress, tasks_blocked: blocked, sprint_health: blocked > 0 || overdue > 0 ? 'at_risk' : 'on_track' },
+    suggested_duration_minutes: 15,
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BEHAVIORAL INSIGHT AGENT
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function behavioralInsightAgent(taskHistory, users) {
-  const systemPrompt = `You are a people analytics AI. Analyze team performance patterns.
+  const systemPrompt = `You are a people analytics AI agent on Azure AI Foundry. Analyze team performance patterns.
 Return JSON:
 {
-  "team_insights": [
-    {
-      "user_id": "string",
-      "name": "string",
-      "patterns": ["pattern description"],
-      "strengths": ["string"],
-      "risk_factors": ["string"],
-      "recommendation": "string",
-      "on_time_rate": 0.0-1.0,
-      "avg_delay_days": 0
-    }
-  ],
-  "task_type_patterns": [
-    { "type": "category", "avg_delay_days": 0, "underestimate_rate": 0.0-1.0, "risk_level": "high|medium|low" }
-  ],
+  "team_insights": [{ "user_id": "string", "name": "string", "patterns": [], "strengths": [], "risk_factors": [], "recommendation": "string", "on_time_rate": 0.0-1.0, "avg_delay_days": 0 }],
+  "task_type_patterns": [{ "type": "category", "avg_delay_days": 0, "underestimate_rate": 0.0-1.0, "risk_level": "high|medium|low" }],
   "team_velocity": { "avg_tasks_per_week": 0, "trend": "improving|stable|declining" },
   "predictive_alerts": ["string"],
   "recommendations": ["string"]
@@ -471,62 +440,49 @@ Return JSON:
   const userPrompt = `Task History: ${JSON.stringify(taskHistory.slice(0, 100))}
 Team: ${JSON.stringify(users)}`;
 
-  const aiResult = await callAI(systemPrompt, userPrompt);
+  const aiResult = await runAgent(systemPrompt, userPrompt);
   if (aiResult) return aiResult;
 
   return {
-    team_insights: users.map(u => ({
-      user_id: u.id,
-      name: u.name,
-      patterns: ['Insufficient historical data for pattern detection'],
-      strengths: ['Analysis pending more data'],
-      risk_factors: [],
-      recommendation: 'Collect more task completion data for accurate insights',
-      on_time_rate: 0.8,
-      avg_delay_days: 1
-    })),
+    team_insights: users.map(u => ({ user_id: u.id, name: u.name, patterns: ['Insufficient historical data'], strengths: ['Analysis pending more data'], risk_factors: [], recommendation: 'Collect more task completion data for accurate insights', on_time_rate: 0.8, avg_delay_days: 1 })),
     task_type_patterns: [],
     team_velocity: { avg_tasks_per_week: 5, trend: 'stable' },
     predictive_alerts: [],
-    recommendations: ['Track task completion times to unlock behavioral insights']
+    recommendations: ['Track task completion times to unlock behavioral insights'],
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CONVERSATION AGENT (AI Assistant chat — lịch sử lưu Cosmos DB)
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function conversationAgent(message, projectContext, chatHistory) {
-  const systemPrompt = `You are CWB Project Intelligence AI — an expert AI project management assistant.
-You help project managers with:
+  const systemPrompt = `You are CWB Project Intelligence AI — powered by Azure AI Foundry (${DEPLOYMENT}).
+You are an expert AI project management assistant that helps project managers with:
 - Answering questions about their project
 - Analyzing risks and suggesting solutions
-- Explaining changes and decisions with traceable evidence
-- Resource optimization
-- Timeline prediction
+- Resource optimization and timeline prediction
 - "What-if" scenario analysis
 - Daily planning and prioritization
 
-Always be concise, actionable, and reference specific data from the project context.
-When you identify risks or issues, explain them clearly.
-Format numbers and dates clearly.
-If asked about specific people, tasks, or dates, reference the actual data.`;
+Always be concise, actionable, and reference specific data from the project context.`;
 
-  const recentHistory = (chatHistory || []).slice(-10).map(m => ({
-    role: m.role,
-    content: m.content
-  }));
+  const recentHistory = (chatHistory || []).slice(-10).map(m => ({ role: m.role, content: m.content }));
 
-  if (!openai) {
+  if (!foundry) {
     return ruleBasedConversation(message, projectContext);
   }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const response = await foundry.chat.completions.create({
+      model: DEPLOYMENT,
       messages: [
         { role: 'system', content: systemPrompt + '\n\nProject Context:\n' + JSON.stringify(projectContext) },
         ...recentHistory,
-        { role: 'user', content: message }
+        { role: 'user', content: message },
       ],
       temperature: 0.5,
-      max_tokens: 1000
+      max_tokens: 1000,
     });
     return { reply: response.choices[0].message.content, confidence: 0.9 };
   } catch (err) {
@@ -549,14 +505,18 @@ function ruleBasedConversation(message, ctx) {
   if (lower.includes('status') || lower.includes('progress') || lower.includes('tiến độ')) {
     const done = tasks.filter(t => t.status === 'done').length;
     const total = tasks.length;
-    return { reply: `Project "${project?.name}": ${done}/${total} tasks completed (${total > 0 ? Math.round(done/total*100) : 0}%). ${tasks.filter(t => t.status === 'in_progress').length} in progress, ${tasks.filter(t => t.status === 'blocked').length} blocked.`, confidence: 0.9 };
+    return { reply: `Project "${project?.name}": ${done}/${total} tasks completed (${total > 0 ? Math.round(done / total * 100) : 0}%). ${tasks.filter(t => t.status === 'in_progress').length} in progress, ${tasks.filter(t => t.status === 'blocked').length} blocked.`, confidence: 0.9 };
   }
-  if (lower.includes('who') || lower.includes('ai')) {
-    return { reply: 'I am CWB Project Intelligence AI. I can help you analyze project risks, track task progress, simulate scenarios, optimize resources, and more. What would you like to know about your project?', confidence: 1.0 };
+  if (lower.includes('who') || lower.includes('ai') || lower.includes('foundry')) {
+    return { reply: 'I am CWB Project Intelligence AI, powered by Azure AI Foundry. I can help you analyze project risks, track task progress, simulate scenarios, optimize resources, and more. What would you like to know?', confidence: 1.0 };
   }
-  
-  return { reply: `I understand you're asking about: "${message}". To give you the best analysis, please configure your OpenAI API key for advanced AI features. Currently running in rule-based mode. I can see your project has ${tasks.length} total tasks with ${tasks.filter(t => t.status !== 'done').length} remaining.`, confidence: 0.5 };
+
+  return { reply: `I understand you're asking about: "${message}". Configure your Azure AI Foundry endpoint for advanced AI features. Currently running in rule-based mode. Your project has ${tasks.length} total tasks with ${tasks.filter(t => t.status !== 'done').length} remaining.`, confidence: 0.5 };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHANGE DETECTION AGENT
+// ─────────────────────────────────────────────────────────────────────────────
 
 function changeDetectionAgent(currentTasks, baselineTasks) {
   const changes = [];
@@ -565,66 +525,34 @@ function changeDetectionAgent(currentTasks, baselineTasks) {
 
   currentTasks.forEach(task => {
     const baseline = baselineMap[task.id];
-    if (!baseline) {
-      changes.push({ task_id: task.id, task_title: task.title, change_type: 'new_task', description: 'Task added after baseline', impact: 'scope_increase', severity: 'medium' });
-      return;
-    }
-
+    if (!baseline) { changes.push({ task_id: task.id, task_title: task.title, change_type: 'new_task', description: 'Task added after baseline', impact: 'scope_increase', severity: 'medium' }); return; }
     if (task.due_date !== baseline.due_date) {
       const days = task.due_date && baseline.due_date ? Math.round((new Date(task.due_date) - new Date(baseline.due_date)) / 86400000) : 0;
       changes.push({ task_id: task.id, task_title: task.title, change_type: 'date_change', field: 'due_date', old_value: baseline.due_date, new_value: task.due_date, days_delta: days, description: `Deadline ${days > 0 ? 'delayed' : 'moved forward'} by ${Math.abs(days)} days`, impact: days > 0 ? 'schedule_delay' : 'schedule_improvement', severity: days > 7 ? 'high' : days > 3 ? 'medium' : 'low' });
     }
-    if (task.owner_id !== baseline.owner_id) {
-      changes.push({ task_id: task.id, task_title: task.title, change_type: 'owner_change', old_value: baseline.owner_id, new_value: task.owner_id, description: 'Task owner changed', impact: 'resource_change', severity: 'medium' });
-    }
-    if (task.status !== baseline.status) {
-      changes.push({ task_id: task.id, task_title: task.title, change_type: 'status_change', old_value: baseline.status, new_value: task.status, description: `Status changed from ${baseline.status} to ${task.status}`, impact: 'progress_update', severity: 'low' });
-    }
-    if (task.priority !== baseline.priority) {
-      changes.push({ task_id: task.id, task_title: task.title, change_type: 'priority_change', old_value: baseline.priority, new_value: task.priority, description: `Priority changed from ${baseline.priority} to ${task.priority}`, impact: 'scope_change', severity: 'medium' });
-    }
+    if (task.owner_id !== baseline.owner_id) changes.push({ task_id: task.id, task_title: task.title, change_type: 'owner_change', old_value: baseline.owner_id, new_value: task.owner_id, description: 'Task owner changed', impact: 'resource_change', severity: 'medium' });
+    if (task.status !== baseline.status) changes.push({ task_id: task.id, task_title: task.title, change_type: 'status_change', old_value: baseline.status, new_value: task.status, description: `Status changed from ${baseline.status} to ${task.status}`, impact: 'progress_update', severity: 'low' });
+    if (task.priority !== baseline.priority) changes.push({ task_id: task.id, task_title: task.title, change_type: 'priority_change', old_value: baseline.priority, new_value: task.priority, description: `Priority changed from ${baseline.priority} to ${task.priority}`, impact: 'scope_change', severity: 'medium' });
   });
 
   const removedTasks = baselineTasks.filter(b => !currentTasks.find(t => t.id === b.id));
-  removedTasks.forEach(t => {
-    changes.push({ task_id: t.id, task_title: t.title, change_type: 'removed_task', description: 'Task removed from plan', impact: 'scope_decrease', severity: 'high' });
-  });
+  removedTasks.forEach(t => { changes.push({ task_id: t.id, task_title: t.title, change_type: 'removed_task', description: 'Task removed from plan', impact: 'scope_decrease', severity: 'high' }); });
 
   return {
     total_changes: changes.length,
     changes,
-    summary: {
-      date_changes: changes.filter(c => c.change_type === 'date_change').length,
-      owner_changes: changes.filter(c => c.change_type === 'owner_change').length,
-      status_changes: changes.filter(c => c.change_type === 'status_change').length,
-      new_tasks: changes.filter(c => c.change_type === 'new_task').length,
-      removed_tasks: changes.filter(c => c.change_type === 'removed_task').length
-    },
+    summary: { date_changes: changes.filter(c => c.change_type === 'date_change').length, owner_changes: changes.filter(c => c.change_type === 'owner_change').length, status_changes: changes.filter(c => c.change_type === 'status_change').length, new_tasks: changes.filter(c => c.change_type === 'new_task').length, removed_tasks: changes.filter(c => c.change_type === 'removed_task').length },
     high_severity: changes.filter(c => c.severity === 'high'),
-    what_changed_this_week: changes.slice(0, 10).map(c => c.description)
+    what_changed_this_week: changes.slice(0, 10).map(c => c.description),
   };
 }
 
-function smartNotificationDecider(task, changeType, userRole) {
-  const notifications = [];
-  
-  const rules = [
-    { condition: () => task.status === 'blocked', message: `Task "${task.title}" is BLOCKED and needs attention`, priority: 'urgent', roles: ['project_manager', 'admin', task.owner_id] },
-    { condition: () => task.due_date && (new Date(task.due_date) - new Date()) / 86400000 <= 1 && task.status !== 'done', message: `Task "${task.title}" is due tomorrow!`, priority: 'high', roles: [task.owner_id, 'project_manager'] },
-    { condition: () => task.risk_score > 70, message: `High risk detected on task "${task.title}" (risk score: ${task.risk_score})`, priority: 'high', roles: ['project_manager', 'admin'] },
-    { condition: () => changeType === 'owner_change', message: `You've been assigned task "${task.title}"`, priority: 'normal', roles: [task.owner_id] },
-    { condition: () => task.is_critical_path && changeType === 'date_change', message: `Critical path task "${task.title}" schedule has changed`, priority: 'high', roles: ['project_manager', 'admin'] }
-  ];
-
-  rules.forEach(rule => {
-    if (rule.condition()) notifications.push({ message: rule.message, priority: rule.priority, target_roles: rule.roles });
-  });
-
-  return notifications;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// TIMELINE PREDICTION AGENT
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function timelinePredictionAgent(project, tasks, historicalData) {
-  const systemPrompt = `You are a project timeline prediction AI. Based on current progress and historical patterns, predict project completion.
+  const systemPrompt = `You are a timeline prediction AI agent on Azure AI Foundry. Predict project completion.
 Return JSON:
 {
   "predicted_end_date": "YYYY-MM-DD",
@@ -632,31 +560,23 @@ Return JSON:
   "delay_probability": 0.0-1.0,
   "predicted_delay_days": 0,
   "velocity_analysis": { "planned_tasks_per_week": 0, "actual_tasks_per_week": 0, "trend": "improving|stable|declining" },
-  "completion_scenarios": [
-    { "scenario": "optimistic|realistic|pessimistic", "end_date": "YYYY-MM-DD", "probability": 0.0-1.0 }
-  ],
+  "completion_scenarios": [{ "scenario": "optimistic|realistic|pessimistic", "end_date": "YYYY-MM-DD", "probability": 0.0-1.0 }],
   "key_risk_factors": ["string"],
   "recommendation": "string"
 }`;
 
   const completedTasks = tasks.filter(t => t.status === 'done');
   const remainingTasks = tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled');
-  
+
   const userPrompt = `Project: ${JSON.stringify(project)}
-Completed Tasks: ${completedTasks.length}
-Remaining Tasks: ${remainingTasks.length}
-Blocked Tasks: ${tasks.filter(t => t.status === 'blocked').length}
+Completed: ${completedTasks.length}, Remaining: ${remainingTasks.length}
+Blocked: ${tasks.filter(t => t.status === 'blocked').length}
 Historical: ${JSON.stringify(historicalData)}`;
 
-  const aiResult = await callAI(systemPrompt, userPrompt);
+  const aiResult = await runAgent(systemPrompt, userPrompt);
   if (aiResult) return aiResult;
 
-  const totalTasks = tasks.length;
-  const done = completedTasks.length;
-  const completionRate = totalTasks > 0 ? done / totalTasks : 0;
-  const remaining = remainingTasks.length;
-  const avgDaysPerTask = 3; // assumption
-  const predictedDays = remaining * avgDaysPerTask;
+  const predictedDays = remainingTasks.length * 3;
   const predictedEnd = new Date();
   predictedEnd.setDate(predictedEnd.getDate() + predictedDays);
 
@@ -665,14 +585,14 @@ Historical: ${JSON.stringify(historicalData)}`;
     confidence: 0.65,
     delay_probability: tasks.filter(t => t.status === 'blocked').length > 0 ? 0.7 : 0.4,
     predicted_delay_days: tasks.filter(t => t.status === 'blocked').length * 2,
-    velocity_analysis: { planned_tasks_per_week: 5, actual_tasks_per_week: Math.round(done / 4), trend: 'stable' },
+    velocity_analysis: { planned_tasks_per_week: 5, actual_tasks_per_week: Math.round(completedTasks.length / 4), trend: 'stable' },
     completion_scenarios: [
       { scenario: 'optimistic', end_date: new Date(Date.now() + predictedDays * 0.8 * 86400000).toISOString().split('T')[0], probability: 0.25 },
       { scenario: 'realistic', end_date: predictedEnd.toISOString().split('T')[0], probability: 0.5 },
-      { scenario: 'pessimistic', end_date: new Date(Date.now() + predictedDays * 1.3 * 86400000).toISOString().split('T')[0], probability: 0.25 }
+      { scenario: 'pessimistic', end_date: new Date(Date.now() + predictedDays * 1.3 * 86400000).toISOString().split('T')[0], probability: 0.25 },
     ],
     key_risk_factors: tasks.filter(t => t.status === 'blocked').map(t => `Blocked: ${t.title}`),
-    recommendation: completionRate < 0.5 ? 'Project is behind schedule. Consider resource reallocation.' : 'Project is progressing well. Maintain current pace.'
+    recommendation: completedTasks.length / tasks.length < 0.5 ? 'Project is behind schedule. Consider resource reallocation.' : 'Project is progressing well.',
   };
 }
 
@@ -686,6 +606,5 @@ module.exports = {
   behavioralInsightAgent,
   conversationAgent,
   changeDetectionAgent,
-  smartNotificationDecider,
-  timelinePredictionAgent
+  timelinePredictionAgent,
 };

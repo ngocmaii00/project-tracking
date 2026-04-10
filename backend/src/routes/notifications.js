@@ -1,56 +1,55 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const db = require('../database');
+const { query, queryOne } = require('../database');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', authenticate, (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
-    const notifications = db.prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50')
-      .all(req.user.id);
-    const unread = db.prepare('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0').get(req.user.id);
-    res.json({ notifications, unread_count: unread.count });
+    const notifications = await query('SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [req.user.id]);
+    const unread = await queryOne('SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = false', [req.user.id]);
+    res.json({ notifications, unread_count: parseInt(unread.count) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/:id/read', authenticate, (req, res) => {
+router.put('/:id/read', authenticate, async (req, res) => {
   try {
-    db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
+    await query('UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/read-all/all', authenticate, (req, res) => {
+router.put('/read-all/all', authenticate, async (req, res) => {
   try {
-    db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').run(req.user.id);
+    await query('UPDATE notifications SET is_read = true WHERE user_id = $1', [req.user.id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/risks/:project_id', authenticate, (req, res) => {
+router.get('/risks/:project_id', authenticate, async (req, res) => {
   try {
-    const risks = db.prepare('SELECT * FROM risks WHERE project_id = ? ORDER BY risk_score DESC').all(req.params.project_id);
+    const risks = await query('SELECT * FROM risks WHERE project_id = $1 ORDER BY risk_score DESC', [req.params.project_id]);
     res.json({ risks });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/risks', authenticate, (req, res) => {
+router.post('/risks', authenticate, async (req, res) => {
   try {
     const { project_id, title, description, category, probability, impact, mitigation, owner_id, due_date } = req.body;
     const risk_score = Math.round((probability || 0.5) * (impact || 0.5) * 100);
     const id = uuidv4();
-    db.prepare('INSERT INTO risks (id, project_id, title, description, category, probability, impact, risk_score, mitigation, owner_id, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, project_id, title, description||'', category||'schedule', probability||0.5, impact||0.5, risk_score, mitigation||'', owner_id||null, due_date||null);
-    res.status(201).json({ risk: db.prepare('SELECT * FROM risks WHERE id = ?').get(id) });
+    await query('INSERT INTO risks (id, project_id, title, description, category, probability, impact, risk_score, mitigation, owner_id, due_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+      [id, project_id, title, description||'', category||'schedule', probability||0.5, impact||0.5, risk_score, mitigation||'', owner_id||null, due_date||null]);
+    res.status(201).json({ risk: await queryOne('SELECT * FROM risks WHERE id = $1', [id]) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/risks/:id', authenticate, (req, res) => {
+router.put('/risks/:id', authenticate, async (req, res) => {
   try {
     const { status, mitigation } = req.body;
-    db.prepare('UPDATE risks SET status=?, mitigation=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(status, mitigation, req.params.id);
-    res.json({ risk: db.prepare('SELECT * FROM risks WHERE id = ?').get(req.params.id) });
+    await query('UPDATE risks SET status=$1, mitigation=$2, updated_at=NOW() WHERE id=$3', [status, mitigation, req.params.id]);
+    res.json({ risk: await queryOne('SELECT * FROM risks WHERE id = $1', [req.params.id]) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

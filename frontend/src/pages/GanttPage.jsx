@@ -76,7 +76,7 @@ export default function GanttPage() {
         progress: t.completion_pct || 0,
         owner_name: t.owner_name,
         isCritical: criticalIds.includes(t.id),
-        dependencies: JSON.parse(t.dependencies || '[]'),
+        dependencies: typeof t.dependencies === 'string' ? JSON.parse(t.dependencies || '[]') : (t.dependencies || []),
       }));
   }, [tasks, criticalIds, showCriticalOnly, currentProject?.project?.start_date]);
 
