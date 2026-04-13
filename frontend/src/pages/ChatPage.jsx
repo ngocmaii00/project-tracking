@@ -410,7 +410,7 @@ function InviteModal({
                         width={40}
                         height={40}
                         className="add-friend-avatar"
-                        style={{ objectFit: 'cover', borderRadius: 'inherit' }}
+                        style={{ objectFit: "cover", borderRadius: "inherit" }}
                       />
                     ) : (
                       friend.name[0]
@@ -1007,24 +1007,42 @@ function IncomingCallModal({ call, onAnswer, onReject }) {
   );
 }
 
-function ActionModal({ title, description, value: initialValue = "", placeholder, confirmText, danger, onClose, onSubmit }) {
+function ActionModal({
+  title,
+  description,
+  value: initialValue = "",
+  placeholder,
+  confirmText,
+  danger,
+  onClose,
+  onSubmit,
+}) {
   const [val, setVal] = useState(initialValue);
   const isConfirmOnly = initialValue === undefined && placeholder === undefined;
 
   return (
     <div className="cwb-modal-overlay">
-      <motion.div 
+      <motion.div
         className="cwb-modal-content"
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
       >
         <div className="cwb-modal-header">
           <h3 style={{ fontSize: 15, fontWeight: 700 }}>{title}</h3>
-          <button className="c-icon-btn" onClick={onClose}><X size={14} /></button>
+          <button className="c-icon-btn" onClick={onClose}>
+            <X size={14} />
+          </button>
         </div>
         <div className="cwb-modal-body">
           {description && (
-            <p style={{ color: "#94a3b8", fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
+            <p
+              style={{
+                color: "#94a3b8",
+                fontSize: 13,
+                marginBottom: 20,
+                lineHeight: 1.5,
+              }}
+            >
               {description}
             </p>
           )}
@@ -1045,25 +1063,25 @@ function ActionModal({ title, description, value: initialValue = "", placeholder
                 color: "white",
                 fontSize: 14,
                 marginBottom: 24,
-                outline: "none"
+                outline: "none",
               }}
             />
           )}
 
           <div style={{ display: "flex", gap: 12 }}>
-            <button 
-              className="profile-btn ghost" 
+            <button
+              className="profile-btn ghost"
               onClick={onClose}
               style={{ flex: 1 }}
             >
               Hủy
             </button>
-            <button 
-              className={`profile-btn primary ${danger ? 'danger' : ''}`}
+            <button
+              className={`profile-btn primary ${danger ? "danger" : ""}`}
               onClick={() => onSubmit(val)}
-              style={{ 
+              style={{
                 flex: 1,
-                background: danger ? "#ef4444" : "#6366f1"
+                background: danger ? "#ef4444" : "#6366f1",
               }}
             >
               {confirmText || "Xác nhận"}
@@ -1103,6 +1121,8 @@ export default function ChatPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [viewConversationId, setViewConversationId] = useState(null);
+  const [viewMessages, setViewMessages] = useState([]);
   const [incomingCall, setIncomingCall] = useState(null); // { senderId, senderName, type }
   const [callSeconds, setCallSeconds] = useState(0);
 
@@ -1129,7 +1149,7 @@ export default function ChatPage() {
   }, [isUploading]);
 
   const [promptModal, setPromptModal] = useState(null); // { title, description, value, onSubmit, placeholder, danger, confirmText }
-  
+
   const activeConvIdRef = useRef(activeConversationId);
   useEffect(() => {
     activeConvIdRef.current = activeConversationId;
@@ -1157,8 +1177,11 @@ export default function ChatPage() {
         try {
           const msg = JSON.parse(e.data);
           if (msg.type === "chat_message") {
-            if (msg.conversationId === activeConvIdRef.current) {
-              setMessages((prev) => {
+            if (
+              msg.conversationId ===
+              (viewConversationId || activeConvIdRef.current)
+            ) {
+              setViewMessages((prev) => {
                 if (prev.some((m) => m.id === msg.id)) return prev;
                 return [...prev, msg];
               });
@@ -1200,7 +1223,7 @@ export default function ChatPage() {
               return filtered;
             });
           } else if (msg.type === "pin_update") {
-            setMessages((prev) =>
+            setViewMessages((prev) =>
               prev.map((m) =>
                 m.id === msg.messageId ? { ...m, is_pinned: msg.isPinned } : m,
               ),
@@ -1338,7 +1361,7 @@ export default function ChatPage() {
   }, [initWebSocket, loadInitialData]);
 
   const initiateCall = (type) => {
-    const otherMember = activeConversation.members?.find(
+    const otherMember = activeViewConversation.members?.find(
       (m) => m.id !== user.id,
     );
     if (!otherMember) return toast.error("Không tìm thấy người nhận");
@@ -1396,11 +1419,15 @@ export default function ChatPage() {
     const loadMessages = async () => {
       if (!activeConversationId) return;
       try {
-        setMessagesLoading(true);
-        const { data } = await api.get(
-          `/chat/messages/${activeConversationId}`,
-        );
-        setMessages(Array.isArray(data) ? data : []);
+        // Đã kích hoạt loading ở click sidebar để phản ứng tức thì (Không set lại ở đây để tránh nháy)
+        const [res] = await Promise.all([
+          api.get(`/chat/messages/${activeConversationId}`),
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+        ]);
+
+        const fetched = Array.isArray(res.data) ? res.data : [];
+        setViewMessages(fetched);
+        setViewConversationId(activeConversationId);
       } catch (err) {
         console.error("History error", err);
       } finally {
@@ -1409,7 +1436,6 @@ export default function ChatPage() {
     };
     loadMessages();
 
-    // Mark as read in DB
     if (activeConversationId) {
       api
         .post(`/chat/conversations/${activeConversationId}/read`)
@@ -1464,6 +1490,7 @@ export default function ChatPage() {
 
   const startConversation = async (userId) => {
     try {
+      setMessagesLoading(true);
       const { data } = await api.post("/chat/conversations", {
         type: "dm",
         memberIds: [userId],
@@ -1472,6 +1499,7 @@ export default function ChatPage() {
       loadInitialData();
     } catch (err) {
       console.error("Start conv error", err);
+      setMessagesLoading(false);
     }
   };
 
@@ -1493,7 +1521,8 @@ export default function ChatPage() {
     if (!activeConversationId) return;
     setPromptModal({
       title: "Rời khỏi nhóm",
-      description: "Bạn có chắc chắn muốn rời khỏi nhóm này không? Bạn sẽ không thể xem tin nhắn trừ khi được mời lại.",
+      description:
+        "Bạn có chắc chắn muốn rời khỏi nhóm này không? Bạn sẽ không thể xem tin nhắn trừ khi được mời lại.",
       danger: true,
       confirmText: "Rời nhóm",
       onSubmit: async () => {
@@ -1506,7 +1535,7 @@ export default function ChatPage() {
         } catch (err) {
           toast.error("Lỗi khi rời nhóm");
         }
-      }
+      },
     });
   };
 
@@ -1594,11 +1623,10 @@ export default function ChatPage() {
   };
 
   const handleReact = (msgId, emoji) => {
-    setMessages((prev) =>
+    setViewMessages((prev) =>
       prev.map((m) => {
         if (m.id !== msgId) return m;
         const reactions = m.reactions || [];
-        // Toggle reaction logic
         const exists = reactions.find(
           (r) => r.emoji === emoji && r.userId === user.id,
         );
@@ -1610,20 +1638,11 @@ export default function ChatPage() {
     );
   };
 
-  const activeConversation =
-    conversations.find((c) => c.id === activeConversationId) || {};
-  const filteredMessages = messages;
-
-  if (isInitialLoading) {
-    return (
-      <div className="cwb-chat-loading">
-        <div className="cwb-loading-box">
-          <div className="cwb-loading-circle" />
-          <span>Đang kết nối hệ thống...</span>
-        </div>
-      </div>
-    );
-  }
+  const activeViewConversation =
+    conversations.find(
+      (c) => c.id === (viewConversationId || activeConversationId),
+    ) || {};
+  const filteredMessages = viewMessages;
 
   return (
     <div className="cwb-chat">
@@ -1641,14 +1660,15 @@ export default function ChatPage() {
             onClick={() => {
               setPromptModal({
                 title: "Tạo nhóm mới",
-                description: "Tên nhóm sẽ giúp mọi người nhận diện cuộc trò chuyện này.",
+                description:
+                  "Tên nhóm sẽ giúp mọi người nhận diện cuộc trò chuyện này.",
                 placeholder: "Ví dụ: Team Design, Ăn chơi...",
                 confirmText: "Tạo nhóm",
                 value: "",
                 onSubmit: (val) => {
                   if (val) createGroup(val, []);
                   setPromptModal(null);
-                }
+                },
               });
             }}
           >
@@ -1879,7 +1899,12 @@ export default function ChatPage() {
                     >
                       <button
                         className={`cwb-ch-btn ${activeConversationId === conv.id ? "active" : ""}`}
-                        onClick={() => setActiveConversationId(conv.id)}
+                        onClick={() => {
+                          if (activeConversationId !== conv.id) {
+                            setMessagesLoading(true);
+                            setActiveConversationId(conv.id);
+                          }
+                        }}
                       >
                         <div
                           className="cwb-user-av"
@@ -2018,24 +2043,32 @@ export default function ChatPage() {
       </aside>
 
       {/* ── Main ── */}
-      <main className="cwb-main">
-        {/* Header */}
+      <main className="cwb-main" style={{ position: "relative" }}>
+        {/* CHAT AREA LOADING - KHÓA RIÊNG KHU VỰC CHAT ĐỂ TRÁNH NHÁY */}
+        <div className={`cwb-chat-lockdown ${messagesLoading ? 'active' : ''}`}>
+          <div className="cwb-lock-content">
+            <div className="cwb-loading-spinner-premium" />
+            <div className="cwb-lock-text">ĐANG KẾT NỐI...</div>
+          </div>
+        </div>
+
+        {/* Header content starts here */}
         <header className="cwb-header">
           <div className="cwb-header-left">
             <div
               className="cwb-user-av"
               style={{
                 background:
-                  activeConversation.type === "group"
+                  activeViewConversation.type === "group"
                     ? "linear-gradient(135deg, #6366f1, #a855f7)"
                     : "#334155",
                 width: 36,
                 height: 36,
               }}
             >
-              {activeConversation.avatar ? (
+              {activeViewConversation.avatar ? (
                 <img
-                  src={getAvatar(activeConversation.avatar)}
+                  src={getAvatar(activeViewConversation.avatar)}
                   alt=""
                   style={{
                     width: "100%",
@@ -2044,13 +2077,13 @@ export default function ChatPage() {
                     objectFit: "cover",
                   }}
                 />
-              ) : activeConversation.type === "group" ? (
+              ) : activeViewConversation.type === "group" ? (
                 <Users size={18} />
-              ) : activeConversation.members?.find((m) => m.id !== user.id)
+              ) : activeViewConversation.members?.find((m) => m.id !== user.id)
                   ?.avatar ? (
                 <img
                   src={getAvatar(
-                    activeConversation.members.find((m) => m.id !== user.id)
+                    activeViewConversation.members.find((m) => m.id !== user.id)
                       ?.avatar,
                   )}
                   alt=""
@@ -2062,21 +2095,27 @@ export default function ChatPage() {
                   }}
                 />
               ) : (
-                activeConversation.members?.find((m) => m.id !== user.id)
+                activeViewConversation.members?.find((m) => m.id !== user.id)
                   ?.name?.[0] || "C"
               )}
             </div>
             <div>
               <h3 className="cwb-channel-name">
-                {activeConversation.type === "dm"
-                  ? activeConversation.members?.find((m) => m.id !== user.id)
-                      ?.name || "Loading..."
-                  : activeConversation.name || "Chọn cuộc trò chuyện"}
+                {activeViewConversation.type === "dm"
+                  ? activeViewConversation.members?.find(
+                      (m) => m.id !== user.id,
+                    )?.name || "Loading..."
+                  : activeViewConversation.name ||
+                    (activeConversationId
+                      ? "Đang chuẩn bị..."
+                      : "Chọn cuộc trò chuyện")}
               </h3>
               <p className="cwb-channel-desc">
-                {activeConversation.type === "dm"
+                {activeViewConversation.type === "dm"
                   ? "Trò chuyện cá nhân"
-                  : `${activeConversation.members?.length || 0} thành viên`}
+                  : activeViewConversation.members
+                    ? `${activeViewConversation.members.length} thành viên`
+                    : "Tải dữ liệu..."}
               </p>
             </div>
           </div>
@@ -2118,19 +2157,25 @@ export default function ChatPage() {
         <div className="cwb-content-wrap">
           {/* Message list */}
           <div className="cwb-messages" ref={scrollRef}>
-            {messagesLoading ? (
+            {!viewConversationId && !messagesLoading ? (
               <div
                 style={{
                   flex: 1,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  height: "100%",
+                  opacity: 0.5,
                 }}
               >
-                <div className="ai-thinking">
-                  <div className="ai-dot" />
-                  <div className="ai-dot" />
-                  <div className="ai-dot" />
+                <div style={{ textAlign: "center" }}>
+                  <MessageSquare
+                    size={48}
+                    style={{ margin: "0 auto 16px", color: "#6366f1" }}
+                  />
+                  <p style={{ fontSize: 13 }}>
+                    Hãy chọn một cuộc thảo luận để bắt đầu
+                  </p>
                 </div>
               </div>
             ) : (
@@ -2143,19 +2188,19 @@ export default function ChatPage() {
                       color: "#6366f1",
                     }}
                   >
-                    {activeConversation.type === "group" ? (
+                    {activeViewConversation.type === "group" ? (
                       <Users size={28} />
                     ) : (
                       <MessageSquare size={28} />
                     )}
                   </div>
                   <h2 className="cwb-welcome-title">
-                    {activeConversation.type === "dm"
-                      ? `Cuộc trò chuyện với ${activeConversation.members?.find((m) => m.id !== user.id)?.name || "..."}`
-                      : `Chào mừng đến ${activeConversation.name || "nhóm"}!`}
+                    {activeViewConversation.type === "dm"
+                      ? `Cuộc trò chuyện với ${activeViewConversation.members?.find((m) => m.id !== user.id)?.name || "..."}`
+                      : `Chào mừng đến ${activeViewConversation.name || "nhóm"}!`}
                   </h2>
                   <p className="cwb-welcome-desc">
-                    {activeConversation.type === "dm"
+                    {activeViewConversation.type === "dm"
                       ? "Đây là nơi bắt đầu cuộc trò chuyện riêng tư giữa bạn và người này."
                       : "Gửi tin nhắn đầu tiên để bắt đầu thảo luận với mọi người."}
                   </p>
@@ -2284,7 +2329,7 @@ export default function ChatPage() {
                     sendTypingEvent();
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Nhắn tin cho ${activeConversation.type === "dm" ? activeConversation.members?.find((m) => m.id !== user.id)?.name : activeConversation.name || "..."}`}
+                  placeholder={`Nhắn tin cho ${activeViewConversation.type === "dm" ? activeViewConversation.members?.find((m) => m.id !== user.id)?.name : activeViewConversation.name || "..."}`}
                   rows={1}
                 />
                 <button
@@ -2326,7 +2371,7 @@ export default function ChatPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Users size={16} style={{ color: "#6366f1" }} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: "white" }}>
-                  Thành viên ({activeConversation.members?.length || 0})
+                  Thành viên ({activeViewConversation.members?.length || 0})
                 </span>
               </div>
               <button
@@ -2346,9 +2391,9 @@ export default function ChatPage() {
                   letterSpacing: 1,
                 }}
               >
-                THÀNH VIÊN — {activeConversation.members?.length || 0}
+                THÀNH VIÊN — {activeViewConversation.members?.length || 0}
               </div>
-              {activeConversation.members?.map((m) => (
+              {activeViewConversation.members?.map((m) => (
                 <div key={m.id} className="member-row">
                   <div
                     className="member-avatar"
@@ -2401,18 +2446,36 @@ export default function ChatPage() {
                 Mời thành viên
               </button>
 
-              {activeConversation.type === "group" && (
-                <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#475569", textTransform: 'uppercase' }}>Cài đặt nhóm</div>
+              {activeViewConversation.type === "group" && (
+                <div
+                  style={{
+                    marginTop: 24,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "#475569",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Cài đặt nhóm
+                  </div>
                   <button
                     className="cwb-panel-btn"
                     onClick={() => {
                       setPromptModal({
                         title: "Đổi tên nhóm",
-                        description: "Nhập tên mới cho cuộc trò chuyện nhóm này.",
-                        value: activeConversation.name,
+                        description:
+                          "Nhập tên mới cho cuộc trò chuyện nhóm này.",
+                        value: activeViewConversation.name,
                         confirmText: "Lưu thay đổi",
-                        onSubmit: (val) => handleUpdateGroup(val, activeConversation.avatar)
+                        onSubmit: (val) =>
+                          handleUpdateGroup(val, activeViewConversation.avatar),
                       });
                     }}
                   >
@@ -2425,10 +2488,11 @@ export default function ChatPage() {
                       setPromptModal({
                         title: "Đổi ảnh nhóm",
                         description: "Nhập địa chỉ URL hình ảnh mới cho nhóm.",
-                        value: activeConversation.avatar || "",
+                        value: activeViewConversation.avatar || "",
                         placeholder: "https://...",
                         confirmText: "Cập nhật ảnh",
-                        onSubmit: (val) => handleUpdateGroup(activeConversation.name, val)
+                        onSubmit: (val) =>
+                          handleUpdateGroup(activeViewConversation.name, val),
                       });
                     }}
                   >
@@ -2453,7 +2517,9 @@ export default function ChatPage() {
       {showInviteModal && (
         <InviteModal
           conversationId={activeConversationId}
-          existingMemberIds={activeConversation.members?.map((m) => m.id) || []}
+          existingMemberIds={
+            activeViewConversation.members?.map((m) => m.id) || []
+          }
           onClose={() => setShowInviteModal(false)}
           onInviteSuccess={() => {
             loadInitialData(); // To refresh members list
@@ -2470,10 +2536,7 @@ export default function ChatPage() {
         <SettingsModal user={user} onClose={() => setShowSettings(false)} />
       )}
       {promptModal && (
-        <ActionModal
-          {...promptModal}
-          onClose={() => setPromptModal(null)}
-        />
+        <ActionModal {...promptModal} onClose={() => setPromptModal(null)} />
       )}
       {selectedProfileId && (
         <ProfileModal
@@ -2491,7 +2554,7 @@ export default function ChatPage() {
 
       {activeCall && (
         <CallModal
-          activeConversation={activeConversation}
+          activeConversation={activeViewConversation}
           type={activeCall.type}
           status={activeCall.status}
           seconds={callSeconds}
@@ -3309,6 +3372,36 @@ export default function ChatPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .file-download:hover { color: #6366f1; }
+
+        /* CHAT AREA LOCKDOWN - CHỈ LOADING KHU VỰC CHAT */
+        .cwb-chat-lockdown {
+          position: absolute; inset: 0; 
+          background: rgba(8, 13, 26, 0.75);
+          backdrop-filter: blur(15px) saturate(160%);
+          z-index: 1000;
+          display: flex; align-items: center; justify-content: center;
+          color: white;
+          opacity: 0; pointer-events: none;
+          visibility: hidden;
+          transition: opacity 0.2s ease;
+        }
+        .cwb-chat-lockdown.active {
+          opacity: 1; pointer-events: auto; visibility: visible;
+          transition: none; /* Hiện ra ngay lập tức */
+        }
+        .cwb-lock-content { text-align: center; }
+        .cwb-loading-spinner-premium {
+          width: 45px; height: 45px; margin: 0 auto 20px;
+          border: 3px solid rgba(99,102,241,0.1);
+          border-top-color: #6366f1; border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        .cwb-lock-text {
+          font-size: 13px; font-weight: 800; letter-spacing: 4px;
+          color: #6366f1; text-shadow: 0 0 15px rgba(99,102,241,0.5);
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>
   );
