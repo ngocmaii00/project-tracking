@@ -3273,7 +3273,7 @@ export default function ChatPage() {
         .cwb-modal-header h3 { margin: 0; font-size: 16px; color: white; }
         .cwb-modal-body { padding: 20px; }
         .settings-user-section { display: flex; align-items: center; margin-bottom: 24px; }
-        .settings-list { display: flex; flexDirection: column; gap: 4px; }
+        .settings-list { display: grid; gap: 4px; }
         .settings-item {
           display: flex; align-items: center; gap: 12px; padding: 12px;
           border-radius: 10px; cursor: pointer; color: #94a3b8; transition: 0.2s;
