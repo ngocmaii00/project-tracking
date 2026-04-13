@@ -930,3 +930,37 @@ tr:hover td { background: rgba(79, 142, 247, 0.04); }
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
 }
+
+/* ── Persistent Meeting Indicator ── */
+.ongoing-meet-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--success-bg);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 6px 14px;
+  border-radius: 20px;
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: 0.2s;
+}
+
+.ongoing-meet-pill:hover {
+  background: var(--success);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.beat-animation {
+  animation: heart-beat 1.5s infinite ease-in-out;
+}
+
+@keyframes heart-beat {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.3); }
+  50% { transform: scale(1); }
+  75% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}

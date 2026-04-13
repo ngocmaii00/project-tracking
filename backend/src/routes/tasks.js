@@ -64,6 +64,12 @@ router.post('/', authenticate, async (req, res) => {
     await query('INSERT INTO task_changes (id, task_id, project_id, changed_by, change_type, ai_reasoning, source) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [changeId, id, project_id, req.user.id, 'created', 'Task created manually', 'manual']);
 
+    // Log to global audit
+    await query(`
+      INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, details)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [uuidv4(), req.user.id, 'create_task', 'task', id, JSON.stringify({ title, project_id })]);
+
     // Log to Cosmos
     await saveAuditEvent({
       projectId: project_id, entityType: 'task', entityId: id, changeType: 'created',
@@ -173,6 +179,13 @@ router.delete('/:id', authenticate, authorize('project_manager', 'admin'), async
     if (!task) return res.status(404).json({ error: 'Task not found' });
     await query('DELETE FROM tasks WHERE id = $1', [req.params.id]);
     await deleteDocument(req.params.id); // Remove from Azure Search
+
+    // Log to global audit
+    await query(`
+      INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, details)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [uuidv4(), req.user.id, 'delete_task', 'task', req.params.id, JSON.stringify({ title: task.title })]);
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

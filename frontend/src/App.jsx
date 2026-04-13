@@ -17,6 +17,7 @@ import AIAssistantPage from './pages/AIAssistantPage';
 import AuditTrailPage from './pages/AuditTrailPage';
 import MeetingRoomPage from './pages/MeetingRoomPage';
 import ChatPage from './pages/ChatPage';
+import ProfilePage from './pages/ProfilePage';
 import './index.css';
 
 function ProtectedRoute({ children }) {
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="ai/assistant" element={<AIAssistantPage />} />
           <Route path="meetings" element={<MeetingsPage />} />
           <Route path="chat" element={<ChatPage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route path="meetings/:id/room" element={<MeetingRoomPage />} />
         </Route>
       </Routes>

@@ -14,7 +14,7 @@ const pool = new Pool({
   ssl: process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : false,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 15000,
 });
 
 pool.on('error', (err) => {
@@ -300,6 +300,17 @@ async function initializeDatabase() {
         UNIQUE(user_id1, user_id2)
       );
 
+      -- Meeting Invitations
+      CREATE TABLE IF NOT EXISTS meeting_invitations (
+        id TEXT PRIMARY KEY,
+        meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status TEXT DEFAULT 'pending' CHECK(status IN ('pending','accepted','rejected')),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(meeting_id, user_id)
+      );
+
       -- Messages (Updated to support conversations)
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY,
@@ -319,6 +330,17 @@ async function initializeDatabase() {
       ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;
       ALTER TABLE messages ADD COLUMN IF NOT EXISTS file_url TEXT;
       ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to JSONB;
+
+      -- Global Audit Log
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id),
+        action TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT,
+        details JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
 
       -- Indexes
       CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);

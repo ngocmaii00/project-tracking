@@ -35,6 +35,11 @@ router.post('/', authenticate, authorize('project_manager', 'admin'), async (req
       VALUES ($1, $2, $3, $4, $5, $6, $7)
     `, [id, name, description || '', start_date || null, end_date || null, end_date || null, owner_id || req.user.id]);
 
+    await query(`
+      INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, details)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [uuidv4(), req.user.id, 'create_project', 'project', id, JSON.stringify({ name })]);
+
     const project = await queryOne('SELECT * FROM projects WHERE id = $1', [id]);
     res.status(201).json({ project });
   } catch (err) {

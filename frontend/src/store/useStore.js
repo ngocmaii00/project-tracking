@@ -32,6 +32,12 @@ const useStore = create(
       const { data } = await api.get('/auth/users');
       set(s => { s.users = data.users; });
     },
+    updateProfile: async (payload) => {
+      const { data } = await api.put('/auth/profile', payload);
+      localStorage.setItem('cwb_user', JSON.stringify(data.user));
+      set(s => { s.user = data.user; });
+      return data;
+    },
 
     projects: [],
     currentProject: null,
@@ -203,8 +209,25 @@ const useStore = create(
     },
     processMeeting: async (id, transcript, extra = {}) => {
       const { data } = await api.post(`/meetings/${id}/process`, { transcript, ...extra });
-      toast.success('Meeting processed!');
+      toast.success('Hoàn tất xử lý meeting!');
       return data;
+    },
+    inviteToMeeting: async (meetingId, userId) => {
+      await api.post(`/meetings/${meetingId}/invite`, { user_id: userId });
+      toast.success('Đã gửi lời mời họp');
+    },
+    acceptMeetingInvite: async (inviteId) => {
+      await api.post(`/meetings/invitations/${inviteId}/accept`);
+      toast.success('Đã chấp nhận lời mời họp');
+    },
+    loadMeetingInvitations: async () => {
+      const { data } = await api.get('/meetings/invitations');
+      return data.invitations;
+    },
+    deleteMeeting: async (id) => {
+      await api.delete(`/meetings/${id}`);
+      set(s => { s.meetings = s.meetings.filter(m => m.id !== id); });
+      toast.success('Đã xóa cuộc họp');
     },
 
     notifications: [],
@@ -234,6 +257,25 @@ const useStore = create(
 
     sidebarOpen: true,
     toggleSidebar: () => set(s => { s.sidebarOpen = !s.sidebarOpen; }),
+
+    activeMeeting: null, // { id, title, videoStream, audioStream, transcript, chatMessages, isRecording, ... }
+    setActiveMeeting: (meeting) => set(s => { s.activeMeeting = meeting; }),
+    updateMeetingState: (updater) => set(s => {
+      if (s.activeMeeting) {
+        if (typeof updater === 'function') {
+          updater(s.activeMeeting);
+        } else {
+          s.activeMeeting = { ...s.activeMeeting, ...updater };
+        }
+      }
+    }),
+    endActiveMeeting: () => set(s => {
+      if (s.activeMeeting) {
+        if (s.activeMeeting.videoStream) s.activeMeeting.videoStream.getTracks().forEach(t => t.stop());
+        if (s.activeMeeting.audioStream) s.activeMeeting.audioStream.getTracks().forEach(t => t.stop());
+        s.activeMeeting = null;
+      }
+    }),
   }))
 );
 

@@ -2,12 +2,39 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Mic, MicOff, Video, VideoOff, MessageSquare, Settings,
-  ChevronRight, MonitorUp, FileEdit, Layout, Sidebar,
-  Minimize2, Grid, Monitor, GripHorizontal, Bot, Send,
-  Clock, AlertTriangle, CheckCircle, Zap, X, Smile,
-  AtSign, Plus, Reply, MoreVertical, Copy, Users,
-  Hash, Paperclip, Phone, PhoneOff
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  MessageSquare,
+  Settings,
+  ChevronRight,
+  MonitorUp,
+  FileEdit,
+  Layout,
+  Sidebar,
+  Minimize2,
+  Grid,
+  Monitor,
+  GripHorizontal,
+  Bot,
+  Send,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  Zap,
+  X,
+  Smile,
+  AtSign,
+  Plus,
+  Reply,
+  MoreVertical,
+  Copy,
+  Users,
+  Hash,
+  Paperclip,
+  Phone,
+  PhoneOff,
 } from "lucide-react";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import useStore from "../store/useStore";
@@ -15,6 +42,15 @@ import api from "../lib/api";
 import toast from "react-hot-toast";
 
 const EMOJI_REACTIONS = ["👍", "❤️", "👏", "🔥", "🎉", "🤔", "😂", "🚀"];
+
+const getAvatar = (url) => {
+  if (!url) return null;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
+  const baseUrl =
+    import.meta.env.VITE_API_URL?.replace("/api", "") ||
+    "http://localhost:3001";
+  return `${baseUrl}${url}`;
+};
 
 function ProfileModal({ userId, onClose }) {
   const [profile, setProfile] = useState(null);
@@ -24,10 +60,13 @@ function ProfileModal({ userId, onClose }) {
     const fetchProfile = async () => {
       try {
         const { data } = await api.get(`/friends/search?q=${userId}`);
-        const user = data.find(u => u.id === userId);
+        const user = data.find((u) => u.id === userId);
         setProfile(user);
-      } catch (err) { console.error('Profile fetch error', err); }
-      finally { setLoading(false); }
+      } catch (err) {
+        console.error("Profile fetch error", err);
+      } finally {
+        setLoading(false);
+      }
     };
     if (userId) fetchProfile();
   }, [userId]);
@@ -36,12 +75,29 @@ function ProfileModal({ userId, onClose }) {
 
   return (
     <div className="meet-modal-overlay" onClick={onClose}>
-      <div className="meet-modal-content profile" onClick={e => e.stopPropagation()}>
-        <div className="profile-banner" style={{ background: `hsl(${profile.name.charCodeAt(0) * 40}, 60%, 40%)` }} />
+      <div
+        className="meet-modal-content profile"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="profile-banner"
+          style={{
+            background: `hsl(${profile.name.charCodeAt(0) * 40}, 60%, 40%)`,
+          }}
+        />
         <div className="profile-body">
           <div className="profile-avatar-wrap">
-            <div className="profile-avatar" style={{ background: `hsl(${profile.name.charCodeAt(0) * 40}, 60%, 40%)` }}>
-              {profile.avatar ? <img src={profile.avatar} alt="" /> : profile.name[0]}
+            <div
+              className="profile-avatar"
+              style={{
+                background: `hsl(${profile.name.charCodeAt(0) * 40}, 60%, 40%)`,
+              }}
+            >
+              {profile.avatar ? (
+                <img src={getAvatar(profile.avatar)} alt="" />
+              ) : (
+                profile.name[0]
+              )}
             </div>
           </div>
           <div className="profile-info">
@@ -52,8 +108,12 @@ function ProfileModal({ userId, onClose }) {
               <span className="profile-badge online">Online</span>
             </div>
             <div className="profile-actions">
-              <button className="profile-btn primary" onClick={onClose}>Nhắn tin</button>
-              <button className="profile-btn ghost" onClick={onClose}>Hồ sơ đầy đủ</button>
+              <button className="profile-btn primary" onClick={onClose}>
+                Nhắn tin
+              </button>
+              <button className="profile-btn ghost" onClick={onClose}>
+                Hồ sơ đầy đủ
+              </button>
             </div>
           </div>
         </div>
@@ -78,20 +138,27 @@ function MeetingChatPanel({ messages, user, wsRef, onClose, onOpenProfile }) {
 
   const sendMsg = () => {
     if (!input.trim() || !wsRef.current) return;
-    wsRef.current.send(JSON.stringify({
-      type: "chat_message",
-      projectId: null,
-      content: input.trim(),
-      authorName: user.name,
-      authorAvatar: user.avatar,
-      ...(replyTo && { replyTo: { author: replyTo.authorName, content: replyTo.content } })
-    }));
+    wsRef.current.send(
+      JSON.stringify({
+        type: "chat_message",
+        projectId: null,
+        content: input.trim(),
+        authorName: user.name,
+        authorAvatar: user.avatar,
+        ...(replyTo && {
+          replyTo: { author: replyTo.authorName, content: replyTo.content },
+        }),
+      }),
+    );
     setInput("");
     setReplyTo(null);
   };
 
   const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMsg();
+    }
   };
 
   const sendReaction = () => {
@@ -104,53 +171,80 @@ function MeetingChatPanel({ messages, user, wsRef, onClose, onOpenProfile }) {
       <div className="meet-chat-header">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <MessageSquare size={15} style={{ color: "#7eb8ff" }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "white" }}>Meeting Chat</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "white" }}>
+            Meeting Chat
+          </span>
           <span className="meet-chat-badge">{messages.length}</span>
         </div>
-        <button className="meet-icon-btn" onClick={onClose}><ChevronRight size={15} /></button>
+        <button className="meet-icon-btn" onClick={onClose}>
+          <ChevronRight size={15} />
+        </button>
       </div>
 
       {/* Messages */}
       <div className="meet-chat-messages" ref={scrollRef}>
         {messages.length === 0 ? (
-          <div className="meet-chat-empty">
-            <MessageSquare size={28} style={{ color: "#334155", marginBottom: 8 }} />
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Chưa có tin nhắn</div>
-            <div style={{ fontSize: 11, color: "#334155" }}>Bắt đầu cuộc trò chuyện!</div>
+          <div
+            className="meet-chat-empty"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+            }}
+          >
+            <MessageSquare
+              size={28}
+              style={{ color: "#334155", marginBottom: 8 }}
+            />
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
+              Chưa có tin nhắn
+            </div>
           </div>
         ) : (
           messages.map((m, i) => {
             const isMe = m.authorId === user.id || m.authorName === user.name;
-            const prev = messages[i - 1];
-            const hideHeader = prev && prev.authorName === m.authorName &&
-              (new Date(m.createdAt) - new Date(prev.createdAt) < 60000);
-
             return (
               <div
                 key={i}
-                className={`meet-msg-row ${isMe ? "mine" : ""}`}
+                className={`meet-chat-row ${isMe ? "is-me" : ""}`}
                 onMouseEnter={() => setHoveredMsg(i)}
-                onMouseLeave={() => { setHoveredMsg(null); setShowEmojiFor(null); }}
+                onMouseLeave={() => {
+                  setHoveredMsg(null);
+                  setShowEmojiFor(null);
+                }}
               >
-                {!hideHeader && !isMe && (
+                {!isMe && (
                   <div
+                    className="meet-chat-avatar"
+                    onClick={() => onOpenProfile(m.authorId)}
                     style={{
-                      cursor: 'pointer',
                       background: `hsl(${(m.authorName || "X").charCodeAt(0) * 45}, 55%, 40%)`,
                     }}
-                    onClick={() => onOpenProfile(m.authorId)}
                   >
-                    {m.authorAvatar ? <img src={m.authorAvatar} alt="" style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'cover' }} /> : (m.authorName || "?")[0]}
+                    {m.authorAvatar ? (
+                      <img src={getAvatar(m.authorAvatar)} alt="" />
+                    ) : (
+                      (m.authorName || "?")[0]
+                    )}
                   </div>
                 )}
-                {(hideHeader || isMe) && <div style={{ width: 28, flexShrink: 0 }} />}
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {!hideHeader && (
-                    <div className={`meet-msg-meta ${isMe ? "mine" : ""}`}>
-                      <span className="meet-msg-author" style={{ cursor: 'pointer' }} onClick={() => onOpenProfile(m.authorId)}>{isMe ? "You" : m.authorName}</span>
-                      <span className="meet-msg-time">
-                        {new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                <div className={`meet-chat-bubble-wrap ${isMe ? "is-me" : ""}`}>
+                  {!isMe && (
+                    <div className="meet-chat-meta">
+                      <span
+                        className="meet-chat-author"
+                        onClick={() => onOpenProfile(m.authorId)}
+                      >
+                        {m.authorName}
+                      </span>
+                      <span className="meet-chat-time">
+                        {new Date(m.createdAt || Date.now()).toLocaleTimeString(
+                          [],
+                          { hour: "2-digit", minute: "2-digit" },
+                        )}
                       </span>
                     </div>
                   )}
@@ -158,8 +252,20 @@ function MeetingChatPanel({ messages, user, wsRef, onClose, onOpenProfile }) {
                     <div className={`meet-reply-preview ${isMe ? "mine" : ""}`}>
                       <div className="meet-reply-bar" />
                       <div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: "#818cf8" }}>{m.replyTo.author}</span>
-                        <p style={{ margin: 0, fontSize: 10, color: "#64748b" }}>{m.replyTo.content}</p>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: "#818cf8",
+                          }}
+                        >
+                          {m.replyTo.author}
+                        </span>
+                        <p
+                          style={{ margin: 0, fontSize: 10, color: "#64748b" }}
+                        >
+                          {m.replyTo.content}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -168,19 +274,44 @@ function MeetingChatPanel({ messages, user, wsRef, onClose, onOpenProfile }) {
                   </div>
                 </div>
 
+                {isMe && (
+                  <div className="meet-chat-avatar is-me">
+                    {user.avatar ? (
+                      <img src={getAvatar(user.avatar)} alt="" />
+                    ) : (
+                      user.name[0]
+                    )}
+                  </div>
+                )}
                 {hoveredMsg === i && (
                   <div className={`meet-msg-actions ${isMe ? "mine" : ""}`}>
-                    <button className="meet-action-btn" onClick={() => setShowEmojiFor(showEmojiFor === i ? null : i)}>
+                    <button
+                      className="meet-action-btn"
+                      onClick={() =>
+                        setShowEmojiFor(showEmojiFor === i ? null : i)
+                      }
+                    >
                       <Smile size={12} />
                     </button>
-                    <button className="meet-action-btn" onClick={() => setReplyTo(m)}>
+                    <button
+                      className="meet-action-btn"
+                      onClick={() => setReplyTo(m)}
+                    >
                       <Reply size={12} />
                     </button>
-                    <button className="meet-action-btn"><MoreVertical size={12} /></button>
+                    <button className="meet-action-btn">
+                      <MoreVertical size={12} />
+                    </button>
                     {showEmojiFor === i && (
                       <div className="meet-emoji-picker">
-                        {EMOJI_REACTIONS.map(e => (
-                          <button key={e} className="meet-emoji-btn" onClick={() => sendReaction(i, e)}>{e}</button>
+                        {EMOJI_REACTIONS.map((e) => (
+                          <button
+                            key={e}
+                            className="meet-emoji-btn"
+                            onClick={() => sendReaction(i, e)}
+                          >
+                            {e}
+                          </button>
                         ))}
                       </div>
                     )}
@@ -191,29 +322,47 @@ function MeetingChatPanel({ messages, user, wsRef, onClose, onOpenProfile }) {
           })
         )}
       </div>
-
       {/* Reply preview */}
       {replyTo && (
         <div className="meet-reply-bar-zone">
           <Reply size={11} style={{ color: "#6366f1" }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 10, color: "#818cf8", fontWeight: 700 }}>{replyTo.authorName}</span>
-            <p style={{ margin: 0, fontSize: 10, color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{replyTo.content}</p>
+            <span style={{ fontSize: 10, color: "#818cf8", fontWeight: 700 }}>
+              {replyTo.authorName}
+            </span>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 10,
+                color: "#64748b",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {replyTo.content}
+            </p>
           </div>
-          <button className="meet-icon-btn sm" onClick={() => setReplyTo(null)}><X size={11} /></button>
+          <button className="meet-icon-btn sm" onClick={() => setReplyTo(null)}>
+            <X size={11} />
+          </button>
         </div>
       )}
 
       {/* Input */}
       <div className="meet-chat-input-zone">
         <div className="meet-input-box">
-          <button className="meet-tool-btn"><Plus size={13} /></button>
-          <button className="meet-tool-btn"><Smile size={13} /></button>
+          <button className="meet-tool-btn">
+            <Plus size={13} />
+          </button>
+          <button className="meet-tool-btn">
+            <Smile size={13} />
+          </button>
           <textarea
             ref={inputRef}
             className="meet-textarea"
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
             placeholder="Nhắn tin trong meeting..."
             rows={1}
@@ -226,7 +375,9 @@ function MeetingChatPanel({ messages, user, wsRef, onClose, onOpenProfile }) {
             <Send size={13} />
           </button>
         </div>
-        <div className="meet-input-hint">Enter gửi · Shift+Enter xuống dòng</div>
+        <div className="meet-input-hint">
+          Enter gửi · Shift+Enter xuống dòng
+        </div>
       </div>
     </div>
   );
@@ -243,20 +394,28 @@ function AIDeadlineTab({ userId }) {
         const { data } = await api.get(`/tasks?owner_id=${userId}`);
         const now = new Date();
         const tasks = (data.tasks || [])
-          .filter(t => t.due_date && t.status !== "done")
-          .map(t => ({ ...t, diffDays: Math.ceil((new Date(t.due_date) - now) / 86400000) }))
+          .filter((t) => t.due_date && t.status !== "done")
+          .map((t) => ({
+            ...t,
+            diffDays: Math.ceil((new Date(t.due_date) - now) / 86400000),
+          }))
           .sort((a, b) => a.diffDays - b.diffDays)
           .slice(0, 6);
         setReminders(tasks);
-      } catch { setReminders([]); }
-      finally { setLoading(false); }
+      } catch {
+        setReminders([]);
+      } finally {
+        setLoading(false);
+      }
     };
     fetch();
   }, [userId]);
 
   const urgency = (d) => {
-    if (d < 0) return { color: "#ef4444", label: "Quá hạn!", icon: AlertTriangle };
-    if (d <= 2) return { color: "#ef4444", label: `${d} ngày`, icon: AlertTriangle };
+    if (d < 0)
+      return { color: "#ef4444", label: "Quá hạn!", icon: AlertTriangle };
+    if (d <= 2)
+      return { color: "#ef4444", label: `${d} ngày`, icon: AlertTriangle };
     if (d <= 7) return { color: "#f59e0b", label: `${d} ngày`, icon: Clock };
     return { color: "#10b981", label: `${d} ngày`, icon: CheckCircle };
   };
@@ -264,36 +423,61 @@ function AIDeadlineTab({ userId }) {
   return (
     <div className="meet-ai-tab">
       <div className="meet-ai-header">
-        <div className="meet-ai-glow-icon"><Bot size={14} /></div>
+        <div className="meet-ai-glow-icon">
+          <Bot size={14} />
+        </div>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "white" }}>AI Deadline Tracker</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "white" }}>
+            AI Deadline Tracker
+          </div>
           <div style={{ fontSize: 10, color: "#475569" }}>Deadline của bạn</div>
         </div>
       </div>
 
       {loading ? (
         <div style={{ textAlign: "center", padding: "24px 0" }}>
-          <div className="meet-ai-dots"><span /><span /><span /></div>
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 10 }}>Đang phân tích...</div>
+          <div className="meet-ai-dots">
+            <span />
+            <span />
+            <span />
+          </div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 10 }}>
+            Đang phân tích...
+          </div>
         </div>
       ) : reminders.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "24px 0", color: "#475569" }}>
-          <CheckCircle size={24} style={{ color: "#10b981", margin: "0 auto 8px", display: "block" }} />
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8" }}>Không có deadline sắp tới</div>
+        <div
+          style={{ textAlign: "center", padding: "24px 0", color: "#475569" }}
+        >
+          <CheckCircle
+            size={24}
+            style={{ color: "#10b981", margin: "0 auto 8px", display: "block" }}
+          />
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8" }}>
+            Không có deadline sắp tới
+          </div>
         </div>
       ) : (
         <>
           <div className="meet-ai-insight">
             <Zap size={11} style={{ color: "#f59e0b", flexShrink: 0 }} />
             <span style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.5 }}>
-              <b style={{ color: "#f59e0b" }}>{reminders.filter(r => r.diffDays <= 7).length}</b> task sắp đến hạn
-              {reminders.filter(r => r.diffDays < 0).length > 0 && (
-                <>, <b style={{ color: "#ef4444" }}>{reminders.filter(r => r.diffDays < 0).length} quá hạn</b></>
+              <b style={{ color: "#f59e0b" }}>
+                {reminders.filter((r) => r.diffDays <= 7).length}
+              </b>{" "}
+              task sắp đến hạn
+              {reminders.filter((r) => r.diffDays < 0).length > 0 && (
+                <>
+                  ,{" "}
+                  <b style={{ color: "#ef4444" }}>
+                    {reminders.filter((r) => r.diffDays < 0).length} quá hạn
+                  </b>
+                </>
               )}
             </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {reminders.map(task => {
+            {reminders.map((task) => {
               const u = urgency(task.diffDays);
               const Icon = u.icon;
               return (
@@ -306,17 +490,59 @@ function AIDeadlineTab({ userId }) {
                     borderRadius: 8,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
-                    <Icon size={12} style={{ color: u.color, marginTop: 2, flexShrink: 0 }} />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 7,
+                    }}
+                  >
+                    <Icon
+                      size={12}
+                      style={{ color: u.color, marginTop: 2, flexShrink: 0 }}
+                    />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0", lineHeight: 1.3 }}>{task.title}</div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
-                        <span style={{ fontSize: 9, color: u.color, fontWeight: 700 }}>{u.label}</span>
-                        <span style={{ fontSize: 9, color: "#334155" }}>·</span>
-                        <span style={{ fontSize: 9, color: "#475569" }}>{task.completion_pct || 0}%</span>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "#e2e8f0",
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {task.title}
                       </div>
-                      <div style={{ marginTop: 4, height: 2, background: "rgba(255,255,255,0.05)", borderRadius: 1 }}>
-                        <div style={{ height: "100%", width: `${task.completion_pct || 0}%`, background: u.color, borderRadius: 1 }} />
+                      <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
+                        <span
+                          style={{
+                            fontSize: 9,
+                            color: u.color,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {u.label}
+                        </span>
+                        <span style={{ fontSize: 9, color: "#334155" }}>·</span>
+                        <span style={{ fontSize: 9, color: "#475569" }}>
+                          {task.completion_pct || 0}%
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          marginTop: 4,
+                          height: 2,
+                          background: "rgba(255,255,255,0.05)",
+                          borderRadius: 1,
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${task.completion_pct || 0}%`,
+                            background: u.color,
+                            borderRadius: 1,
+                          }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -333,26 +559,82 @@ function AIDeadlineTab({ userId }) {
 function TranscriptTab({ transcript }) {
   const scrollRef = useRef(null);
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current)
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [transcript]);
 
   return (
     <div className="meet-transcript" ref={scrollRef}>
       {transcript.length === 0 ? (
-        <div className="meet-chat-empty">
+        <div
+          className="meet-chat-empty"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+          }}
+        >
           <Mic size={24} style={{ color: "#334155", marginBottom: 8 }} />
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Chưa có transcript</div>
-          <div style={{ fontSize: 11, color: "#334155" }}>Nhấn "Sync AI" để bắt đầu ghi</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
+            Chưa có transcript
+          </div>
+          <div style={{ fontSize: 11, color: "#334155" }}>
+            Nhấn "Sync AI" để bắt đầu ghi
+          </div>
         </div>
       ) : (
         transcript.map((t, i) => (
           <div key={i} className="meet-transcript-item">
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-              <div className="meet-transcript-avatar">{t.user[0]}</div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#7eb8ff" }}>{t.user}</span>
-              <span style={{ fontSize: 10, color: "#334155", marginLeft: "auto" }}>{t.time}</span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginBottom: 3,
+              }}
+            >
+              <div
+                className="meet-transcript-avatar"
+                style={{
+                  backgroundColor: `hsl(${t.user[0].charCodeAt(0) * 40}, 50%, 50%)`,
+                  overflow: "hidden",
+                }}
+              >
+                {t.avatar ? (
+                  <img
+                    src={getAvatar(t.avatar)}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                    alt=""
+                  />
+                ) : (
+                  t.user[0]
+                )}
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#7eb8ff" }}>
+                {t.user}
+              </span>
+              <span
+                style={{ fontSize: 10, color: "#334155", marginLeft: "auto" }}
+              >
+                {t.time}
+              </span>
             </div>
-            <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.6, paddingLeft: 24 }}>{t.text}</div>
+            <div
+              style={{
+                fontSize: 12,
+                color: "#94a3b8",
+                lineHeight: 1.6,
+                paddingLeft: 24,
+              }}
+            >
+              {t.text}
+            </div>
           </div>
         ))
       )}
@@ -377,6 +659,7 @@ export default function MeetingRoomPage() {
   const [sharedNotes, setSharedNotes] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const [reactions, setReactions] = useState([]);
+  const [externalScreenData, setExternalScreenData] = useState(null);
   const [activeTab, setActiveTab] = useState("chat");
   const [layoutMode, setLayoutMode] = useState("sidebar");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -395,12 +678,36 @@ export default function MeetingRoomPage() {
   const audioContextRef = useRef(null);
   const animationFrameRef = useRef(null);
   const meetTimerRef = useRef(null);
+  const isMutedRef = useRef(isMuted);
+  const videoStreamRef = useRef(null);
+  const audioStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  useEffect(() => {
+    audioStreamRef.current = audioStream;
+    if (audioStream) audioStreamRef.current = audioStream;
+  }, [audioStream]);
+
+  useEffect(() => {
+    videoStreamRef.current = videoStream;
+  }, [videoStream]);
+
+  useEffect(() => {
+    screenStreamRef.current = screenStream;
+  }, [screenStream]);
 
   useEffect(() => {
     const centerToolbar = () => {
       if (toolbarRef.current) {
         const rect = toolbarRef.current.getBoundingClientRect();
-        setToolbarPos({ x: (window.innerWidth - rect.width) / 2, y: window.innerHeight - rect.height - 40 });
+        setToolbarPos({
+          x: (window.innerWidth - rect.width) / 2,
+          y: window.innerHeight - rect.height - 40,
+        });
       }
     };
     setTimeout(centerToolbar, 100);
@@ -416,41 +723,89 @@ export default function MeetingRoomPage() {
     if (screenRef.current) screenRef.current.srcObject = screenStream;
   }, [screenStream, isScreenSharing]);
 
+  const { setActiveMeeting, updateMeetingState, endActiveMeeting } = useStore();
+
   useEffect(() => {
     initAudio();
     initWebSocket();
-    meetTimerRef.current = setInterval(() => setMeetingDuration(d => d + 1), 1000);
-    return () => { cleanup(); clearInterval(meetTimerRef.current); };
+
+    setActiveMeeting({
+      id,
+      title: "Live Meeting",
+      startTime: new Date(),
+    });
+
+    meetTimerRef.current = setInterval(
+      () => setMeetingDuration((d) => d + 1),
+      1000,
+    );
+
+    return () => {
+      cleanup();
+      updateMeetingState({
+        id,
+        transcript,
+        chatMessages,
+        duration: meetingDuration,
+      });
+
+      clearInterval(meetTimerRef.current);
+    };
   }, []);
 
   const formatDuration = (secs) => {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
-    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    if (h > 0)
+      return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
   const cleanup = () => {
-    if (recognizerRef.current) recognizerRef.current.stopContinuousRecognitionAsync();
-    [videoStream, audioStream, screenStream].forEach(s => s?.getTracks().forEach(t => t.stop()));
+    if (recognizerRef.current) {
+      recognizerRef.current.stopContinuousRecognitionAsync();
+      recognizerRef.current = null;
+    }
+    
+    if (videoStreamRef.current) {
+      videoStreamRef.current.getTracks().forEach(t => t.stop());
+      videoStreamRef.current = null;
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(t => t.stop());
+      audioStreamRef.current = null;
+    }
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(t => t.stop());
+      screenStreamRef.current = null;
+    }
+
     if (wsRef.current) wsRef.current.close();
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    if (audioContextRef.current) audioContextRef.current.close();
   };
 
   const initAudio = async () => {
     try {
-      const as = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+      const as = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true },
+      });
       setAudioStream(as);
       initAudioVisualizer(as);
-    } catch { console.error("Mic access denied"); }
+    } catch {
+      console.error("Mic access denied");
+    }
   };
 
   const initAudioVisualizer = (as) => {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const audioContext = new (
+      window.AudioContext || window.webkitAudioContext
+    )();
     const analyser = audioContext.createAnalyser();
     const source = audioContext.createMediaStreamSource(as);
-    source.connect(analyser); analyser.fftSize = 256;
+    source.connect(analyser);
+    analyser.fftSize = 256;
     audioContextRef.current = audioContext;
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     const update = () => {
@@ -465,14 +820,50 @@ export default function MeetingRoomPage() {
 
   const initWebSocket = () => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${protocol}//localhost:3001/ws?userId=${user.id}`);
+    const ws = new WebSocket(
+      `${protocol}//localhost:3001/ws?userId=${user.id}`,
+    );
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data);
       if (msg.type === "meeting_event") {
         if (msg.event === "reaction") showReaction(msg.emoji, msg.userName);
         else if (msg.event === "note_update") setSharedNotes(msg.content);
+        else if (msg.event === "transcript") {
+          if (msg.userId !== user.id && msg.userName !== user.name) {
+            setTranscript((prev) => [
+              ...prev,
+              {
+                user: msg.userName,
+                avatar: msg.avatar,
+                text: msg.text,
+                time: msg.time,
+              },
+            ]);
+          }
+        }
+      } else if (msg.type === "screen_share_data") {
+        if (msg.userId !== user.id) {
+          if (msg.event === "start")
+            setExternalScreenData({
+              userId: msg.userId,
+              userName: msg.userName,
+              data: null,
+            });
+          else if (msg.event === "stop") setExternalScreenData(null);
+          else if (msg.event === "frame") {
+            setExternalScreenData({
+              userId: msg.userId,
+              userName: msg.userName,
+              data: msg.data,
+            });
+          }
+        }
       } else if (msg.type === "chat_message") {
-        setChatMessages(prev => [...prev, msg]);
+        setChatMessages((prev) => {
+          if (msg.id && prev.find((m) => m.id === msg.id)) return prev;
+          if (!msg.id && prev.find(m => m.content === msg.content && m.authorId === msg.authorId && (Date.now() - new Date(m.createdAt).getTime() < 1000))) return prev;
+          return [...prev, msg];
+        });
       }
     };
     wsRef.current = ws;
@@ -480,86 +871,238 @@ export default function MeetingRoomPage() {
 
   const toggleVideo = async () => {
     if (videoStream) {
-      videoStream.getTracks().forEach(t => t.stop());
-      setVideoStream(null); setIsVideoOff(true);
+      videoStream.getTracks().forEach((t) => t.stop());
+      setVideoStream(null);
+      setIsVideoOff(true);
     } else {
       try {
-        const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
-        setVideoStream(vs); setIsVideoOff(false);
-      } catch { console.error("Camera access denied"); }
+        const vs = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+        });
+        setVideoStream(vs);
+        setIsVideoOff(false);
+      } catch {
+        toast.error("Không thể truy cập Camera");
+      }
     }
   };
 
-  const toggleMic = () => {
-    const next = !isMuted;
-    audioStream?.getAudioTracks().forEach(t => (t.enabled = !next));
-    setIsMuted(next);
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  const toggleMic = async () => {
+    if (audioStream) {
+      audioStream.getTracks().forEach((t) => t.stop());
+      setAudioStream(null);
+      setIsMuted(true);
+      if (recognizerRef.current) {
+        recognizerRef.current.stopContinuousRecognitionAsync(() => {
+          recognizerRef.current = null;
+        });
+      }
+    } else {
+      try {
+        const as = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true },
+        });
+        setAudioStream(as);
+        initAudioVisualizer(as);
+        setIsMuted(false);
+        // Cập nhật ref ngay lập tức để các hàm khác dùng được giá trị mới nhất
+        isMutedRef.current = false;
+        audioStreamRef.current = as;
+        
+        if (isRecording) {
+          startTranscription(true); // Truyền flag để bỏ qua check isMuted cũ
+        }
+      } catch {
+        toast.error("Không thể truy cập Microphone");
+      }
+    }
   };
 
   const toggleScreenShare = () => {
     if (isScreenSharing) {
-      screenStream.getTracks().forEach(t => t.stop());
-      setScreenStream(null); setIsScreenSharing(false);
+      screenStream.getTracks().forEach((t) => t.stop());
+      setScreenStream(null);
+      setIsScreenSharing(false);
+      wsRef.current?.send(
+        JSON.stringify({
+          type: "screen_share_data",
+          event: "stop",
+          userId: user.id,
+        }),
+      );
     } else {
-      navigator.mediaDevices.getDisplayMedia({ video: true }).then(ss => {
-        setScreenStream(ss); setIsScreenSharing(true);
-        ss.getVideoTracks()[0].onended = () => setIsScreenSharing(false);
+      navigator.mediaDevices.getDisplayMedia({ video: true }).then((ss) => {
+        setScreenStream(ss);
+        setIsScreenSharing(true);
+        wsRef.current?.send(
+          JSON.stringify({
+            type: "screen_share_data",
+            event: "start",
+            userId: user.id,
+            userName: user.name,
+          }),
+        );
+        ss.getVideoTracks()[0].onended = () => {
+          setIsScreenSharing(false);
+          wsRef.current?.send(
+            JSON.stringify({
+              type: "screen_share_data",
+              event: "stop",
+              userId: user.id,
+            }),
+          );
+        };
       });
     }
   };
 
-  const startTranscription = async () => {
+  useEffect(() => {
+    if (!isScreenSharing || !screenStream || !wsRef.current) return;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const video = document.createElement("video");
+    video.srcObject = screenStream;
+    video.play();
+
+    const interval = setInterval(() => {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = 800;
+        canvas.height = 450;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const data = canvas.toDataURL("image/jpeg", 0.5);
+        wsRef.current.send(
+          JSON.stringify({
+            type: "screen_share_data",
+            event: "frame",
+            userId: user.id,
+            userName: user.name,
+            data,
+          }),
+        );
+      }
+    }, 500);
+
+    return () => {
+      clearInterval(interval);
+      video.pause();
+      video.srcObject = null;
+    };
+  }, [isScreenSharing, screenStream]);
+
+  const startTranscription = async (forceUnmute = false) => {
+    setIsRecording(true);
+    if (isMuted && !forceUnmute) return;
+
+    if (recognizerRef.current) {
+      recognizerRef.current.stopContinuousRecognitionAsync();
+    }
+
     try {
-      const { data: creds } = await api.get("/meetings/azure-speech-credentials");
-      const config = SpeechSDK.SpeechConfig.fromSubscription(creds.key, creds.region);
+      const { data: creds } = await api.get(
+        "/meetings/azure-speech-credentials",
+      );
+      if (!creds.key || !creds.region) {
+        throw new Error("Azure Speech credentials are not configured in .env");
+      }
+      const config = SpeechSDK.SpeechConfig.fromSubscription(
+        creds.key,
+        creds.region,
+      );
       config.speechRecognitionLanguage = "vi-VN";
-      const recognizer = new SpeechSDK.SpeechRecognizer(config, SpeechSDK.AudioConfig.fromDefaultMicrophoneInput());
+      const recognizer = new SpeechSDK.SpeechRecognizer(
+        config,
+        SpeechSDK.AudioConfig.fromDefaultMicrophoneInput(),
+      );
       recognizer.recognized = (s, e) => {
+        if (isMutedRef.current || !audioStreamRef.current) return; 
         if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
-          setTranscript(prev => [...prev, {
+          const newSegment = {
             user: user.name,
+            avatar: user.avatar,
             text: e.result.text,
-            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-          }]);
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          };
+          setTranscript((prev) => [...prev, newSegment]);
+
+          // Broadcast to others
+          wsRef.current?.send(
+            JSON.stringify({
+              type: "meeting_event",
+              event: "transcript",
+              userId: user.id, // Thêm ID để lọc duplicate chính xác
+              userName: user.name,
+              avatar: user.avatar,
+              text: e.result.text,
+              time: newSegment.time,
+            }),
+          );
         }
       };
       recognizer.startContinuousRecognitionAsync();
       recognizerRef.current = recognizer;
-      setIsRecording(true);
-    } catch {
-      toast.error("Không thể kết nối Azure Speech");
+    } catch (err) {
+      console.error("Azure Speech Error:", err);
     }
   };
 
   const sendReaction = (emoji) => {
-    wsRef.current?.send(JSON.stringify({ type: "meeting_event", event: "reaction", emoji, userName: user.name }));
+    wsRef.current?.send(
+      JSON.stringify({
+        type: "meeting_event",
+        event: "reaction",
+        emoji,
+        userName: user.name,
+      }),
+    );
   };
 
   const showReaction = (emoji, userName) => {
     const rid = Date.now();
-    setReactions(prev => [...prev, { id: rid, emoji, userName, x: Math.random() * 70 + 15 }]);
-    setTimeout(() => setReactions(prev => prev.filter(r => r.id !== rid)), 3000);
+    setReactions((prev) => [
+      ...prev,
+      { id: rid, emoji, userName, x: Math.random() * 70 + 15 },
+    ]);
+    setTimeout(
+      () => setReactions((prev) => prev.filter((r) => r.id !== rid)),
+      3000,
+    );
   };
 
   const updateNotes = (content) => {
     setSharedNotes(content);
-    wsRef.current?.send(JSON.stringify({ type: "meeting_event", event: "note_update", content }));
+    wsRef.current?.send(
+      JSON.stringify({ type: "meeting_event", event: "note_update", content }),
+    );
   };
 
   const stopMeeting = async () => {
-    const fullText = transcript.map(t => `[${t.user}]: ${t.text}`).join("\n");
-    toast.promise(processMeeting(id, fullText), {
-      loading: "AI đang phân tích...",
-      success: "Hoàn tất phân tích!",
-      error: "Có lỗi xảy ra"
-    }).then(() => navigate("/meetings"));
+    const fullText = transcript.map((t) => `[${t.user}]: ${t.text}`).join("\n");
+    toast
+      .promise(processMeeting(id, fullText), {
+        loading: "AI đang phân tích...",
+        success: "Hoàn tất phân tích!",
+        error: "Có lỗi xảy ra",
+      })
+      .then(() => {
+        cleanup();
+        endActiveMeeting();
+        navigate("/meetings");
+      });
   };
 
   const handleMouseDown = (e) => {
     isDragging.current = true;
     const rect = toolbarRef.current.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left + 270;
-    const offsetY = e.clientY - rect.top + 70;
+    const offsetX = e.clientX - rect.left - 40;
+    const offsetY = e.clientY - rect.top + 20;
     const onMouseMove = (em) => {
       if (!isDragging.current) return;
       setToolbarPos({ x: em.clientX - offsetX, y: em.clientY - offsetY });
@@ -582,12 +1125,30 @@ export default function MeetingRoomPage() {
 
   return (
     <div className="meet-room">
-      {/* Floating reactions */}
-      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 100 }}>
-        {reactions.map(r => (
-          <div key={r.id} className="reaction-bubble" style={{ left: `${r.x}%` }}>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 100,
+        }}
+      >
+        {reactions.map((r) => (
+          <div
+            key={r.id}
+            className="reaction-bubble"
+            style={{ left: `${r.x}%` }}
+          >
             <span style={{ fontSize: 36 }}>{r.emoji}</span>
-            <div style={{ fontSize: 10, color: "white", background: "rgba(0,0,0,0.5)", padding: "2px 8px", borderRadius: 10 }}>
+            <div
+              style={{
+                fontSize: 10,
+                color: "white",
+                background: "rgba(0,0,0,0.5)",
+                padding: "2px 8px",
+                borderRadius: 10,
+              }}
+            >
               {r.userName}
             </div>
           </div>
@@ -600,14 +1161,18 @@ export default function MeetingRoomPage() {
         <div className="meet-status-bar">
           <div className="meet-status-left">
             <div className="meet-rec-dot" />
-            <span className="meet-duration">{formatDuration(meetingDuration)}</span>
+            <span className="meet-duration">
+              {formatDuration(meetingDuration)}
+            </span>
             {isRecording && (
               <span className="meet-rec-badge">
                 <div className="meet-rec-anim" /> REC
               </span>
             )}
           </div>
-          <div className="meet-room-name">Meeting Room #{id?.slice(0, 8) || "Live"}</div>
+          <div className="meet-room-name">
+            Meeting Room #{id?.slice(0, 8) || "Live"}
+          </div>
           <div className="meet-status-right">
             <div className="meet-participants">
               <Users size={12} />
@@ -617,26 +1182,96 @@ export default function MeetingRoomPage() {
         </div>
 
         {/* Video grid */}
-        <div className="meet-video-area" style={{
-          gridTemplateColumns: layoutMode === "grid" && isScreenSharing ? "1.5fr 1fr" : "1fr",
-          gridTemplateRows: layoutMode === "spotlight" && isScreenSharing ? "1fr 180px" : "1fr",
-        }}>
+        <div
+          className="meet-video-area"
+          style={{
+            gridTemplateColumns:
+              layoutMode === "grid" && isScreenSharing ? "1.5fr 1fr" : "1fr",
+            gridTemplateRows:
+              layoutMode === "spotlight" && isScreenSharing
+                ? "1fr 180px"
+                : "1fr",
+          }}
+        >
           <div className="meet-video-card main">
             <div className="meet-video-inner">
               {isScreenSharing ? (
-                <video ref={screenRef} autoPlay playsInline className="meet-video-el" style={{ objectFit: layoutMode === "sidebar" ? "cover" : "contain" }} />
+                <video
+                  ref={screenRef}
+                  autoPlay
+                  playsInline
+                  className="meet-video-el"
+                  style={{
+                    objectFit: layoutMode === "sidebar" ? "cover" : "contain",
+                  }}
+                />
+              ) : externalScreenData?.data ? (
+                <div
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    height: "100%",
+                  }}
+                >
+                  <img
+                    src={externalScreenData.data}
+                    alt="shared screen"
+                    className="meet-video-el"
+                    style={{ objectFit: "contain" }}
+                  />
+                  <div className="meet-screen-sharer-tag">
+                    <MonitorUp size={12} /> {externalScreenData.userName} đang
+                    chia sẻ
+                  </div>
+                </div>
               ) : videoStream ? (
-                <video ref={videoRef} autoPlay playsInline muted className="meet-video-el" />
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="meet-video-el"
+                />
               ) : (
                 <div className="meet-avatar-stage">
-                  <div className="meet-voice-ring" style={{ opacity: volumeLevel / 100, transform: `scale(${1 + volumeLevel / 150})` }} />
-                  <div className="meet-user-avatar">
-                    {user.name[0]}
-                    {!isMuted && volumeLevel > 10 && <div className="meet-speaking-glow" />}
+                  <div
+                    className="meet-voice-ring"
+                    style={{
+                      opacity: volumeLevel / 100,
+                      transform: `scale(${1 + volumeLevel / 150})`,
+                    }}
+                  />
+                  <div
+                    className="meet-user-avatar"
+                    style={{
+                      overflow: "hidden",
+                      background: `hsl(${user?.name?.charCodeAt(0) * 40}, 50%, 50%)`,
+                    }}
+                  >
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                        alt=""
+                      />
+                    ) : (
+                      user.name[0]
+                    )}
+                    {!isMuted && volumeLevel > 10 && (
+                      <div className="meet-speaking-glow" />
+                    )}
                   </div>
                   <div className="meet-user-label">
                     <span>{user.name}</span>
-                    {isMuted ? <MicOff size={12} style={{ color: "#ef4444" }} /> : <Mic size={12} style={{ color: "#10b981" }} />}
+                    {isMuted ? (
+                      <MicOff size={12} style={{ color: "#ef4444" }} />
+                    ) : (
+                      <Mic size={12} style={{ color: "#10b981" }} />
+                    )}
                   </div>
                 </div>
               )}
@@ -644,7 +1279,13 @@ export default function MeetingRoomPage() {
             {isScreenSharing && layoutMode !== "sidebar" && (
               <div className="meet-video-pip">
                 {videoStream ? (
-                  <video ref={videoRef} autoPlay playsInline muted className="meet-video-el" />
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="meet-video-el"
+                  />
                 ) : (
                   <div className="meet-pip-avatar">{user.name[0]}</div>
                 )}
@@ -660,11 +1301,14 @@ export default function MeetingRoomPage() {
               { id: "sidebar", icon: Sidebar, label: "Sidebar" },
               { id: "spotlight", icon: Monitor, label: "Spotlight" },
               { id: "grid", icon: Grid, label: "Grid" },
-            ].map(m => (
+            ].map((m) => (
               <button
                 key={m.id}
                 className={`meet-layout-btn ${layoutMode === m.id ? "active" : ""}`}
-                onClick={() => { setLayoutMode(m.id); setShowLayoutMenu(false); }}
+                onClick={() => {
+                  setLayoutMode(m.id);
+                  setShowLayoutMenu(false);
+                }}
               >
                 <m.icon size={18} />
                 <span>{m.label}</span>
@@ -677,10 +1321,19 @@ export default function MeetingRoomPage() {
         <div
           ref={toolbarRef}
           className="meet-toolbar-wrap"
-          style={{ position: "absolute", left: toolbarPos.x, top: toolbarPos.y, zIndex: 1000 }}
+          style={{
+            position: "absolute",
+            left: toolbarPos.x - 300,
+            top: toolbarPos.y - 40,
+            zIndex: 1000,
+          }}
         >
           {isMinimized ? (
-            <button className="meet-tb-minimized" onClick={() => setIsMinimized(false)} onMouseDown={handleMouseDown}>
+            <button
+              className="meet-tb-minimized"
+              onClick={() => setIsMinimized(false)}
+              onMouseDown={handleMouseDown}
+            >
               <Settings size={22} />
             </button>
           ) : (
@@ -690,19 +1343,35 @@ export default function MeetingRoomPage() {
               </div>
 
               <div className="meet-tb-group">
-                <button className={`meet-tb-btn ${isMuted ? "danger" : ""}`} onClick={toggleMic} title={isMuted ? "Bật mic" : "Tắt mic"}>
+                <button
+                  className={`meet-tb-btn ${isMuted ? "danger" : ""}`}
+                  onClick={toggleMic}
+                  title={isMuted ? "Bật mic" : "Tắt mic"}
+                >
                   {isMuted ? <MicOff size={17} /> : <Mic size={17} />}
                   <span>{isMuted ? "Mic off" : "Mic"}</span>
                 </button>
-                <button className={`meet-tb-btn ${isVideoOff ? "danger" : ""}`} onClick={toggleVideo} title={isVideoOff ? "Bật camera" : "Tắt camera"}>
+                <button
+                  className={`meet-tb-btn ${isVideoOff ? "danger" : ""}`}
+                  onClick={toggleVideo}
+                  title={isVideoOff ? "Bật camera" : "Tắt camera"}
+                >
                   {isVideoOff ? <VideoOff size={17} /> : <Video size={17} />}
                   <span>{isVideoOff ? "Cam off" : "Camera"}</span>
                 </button>
-                <button className={`meet-tb-btn ${isScreenSharing ? "active" : ""}`} onClick={toggleScreenShare} title="Chia sẻ màn hình">
+                <button
+                  className={`meet-tb-btn ${isScreenSharing ? "active" : ""}`}
+                  onClick={toggleScreenShare}
+                  title="Chia sẻ màn hình"
+                >
                   <MonitorUp size={17} />
                   <span>Share</span>
                 </button>
-                <button className={`meet-tb-btn ${showLayoutMenu ? "active" : ""}`} onClick={() => setShowLayoutMenu(!showLayoutMenu)} title="Bố cục">
+                <button
+                  className={`meet-tb-btn ${showLayoutMenu ? "active" : ""}`}
+                  onClick={() => setShowLayoutMenu(!showLayoutMenu)}
+                  title="Bố cục"
+                >
                   <Layout size={17} />
                   <span>Layout</span>
                 </button>
@@ -711,22 +1380,48 @@ export default function MeetingRoomPage() {
               <div className="meet-tb-divider" />
 
               <div className="meet-tb-reactions">
-                {["👍", "❤️", "👏", "🔥", "🎉"].map(e => (
-                  <button key={e} className="meet-react-btn" onClick={() => sendReaction(e)}>{e}</button>
+                {["👍", "❤️", "👏", "🔥", "🎉"].map((e) => (
+                  <button
+                    key={e}
+                    className="meet-react-btn"
+                    onClick={() => sendReaction(e)}
+                  >
+                    {e}
+                  </button>
                 ))}
               </div>
 
               <div className="meet-tb-divider" />
 
-              <button className="meet-tb-ghost" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-                <Sidebar size={17} style={{ color: isSidebarOpen ? "#7eb8ff" : undefined }} />
+              <button
+                className="meet-tb-ghost"
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              >
+                <Sidebar
+                  size={17}
+                  style={{ color: isSidebarOpen ? "#7eb8ff" : undefined }}
+                />
               </button>
 
-              <button className={`meet-tb-action ${isRecording ? "rec" : "sync"}`} onClick={isRecording ? stopMeeting : startTranscription}>
-                {isRecording ? <><PhoneOff size={15} /> Kết thúc</> : <><Zap size={15} /> Sync AI</>}
+              <button
+                className={`meet-tb-action ${isRecording ? "rec" : "sync"}`}
+                onClick={isRecording ? stopMeeting : startTranscription}
+              >
+                {isRecording ? (
+                  <>
+                    <PhoneOff size={15} /> Kết thúc
+                  </>
+                ) : (
+                  <>
+                    <Zap size={15} /> Sync AI
+                  </>
+                )}
               </button>
 
-              <button className="meet-tb-ghost sm" onClick={() => setIsMinimized(true)}>
+              <button
+                className="meet-tb-ghost sm"
+                onClick={() => setIsMinimized(true)}
+              >
                 <Minimize2 size={15} />
               </button>
             </div>
@@ -738,7 +1433,7 @@ export default function MeetingRoomPage() {
       <div className={`meet-sidebar-panel ${isSidebarOpen ? "open" : ""}`}>
         {/* Tab bar */}
         <div className="meet-tab-bar">
-          {SIDEBAR_TABS.map(tab => (
+          {SIDEBAR_TABS.map((tab) => (
             <button
               key={tab.id}
               className={`meet-tab ${activeTab === tab.id ? "active" : ""}`}
@@ -751,7 +1446,10 @@ export default function MeetingRoomPage() {
               )}
             </button>
           ))}
-          <button className="meet-close-sidebar" onClick={() => setIsSidebarOpen(false)}>
+          <button
+            className="meet-close-sidebar"
+            onClick={() => setIsSidebarOpen(false)}
+          >
             <ChevronRight size={14} />
           </button>
         </div>
@@ -770,19 +1468,25 @@ export default function MeetingRoomPage() {
 
           {activeTab === "ai" && <AIDeadlineTab userId={user.id} />}
 
-          {activeTab === "transcript" && <TranscriptTab transcript={transcript} />}
+          {activeTab === "transcript" && (
+            <TranscriptTab transcript={transcript} />
+          )}
 
           {activeTab === "notes" && (
             <div className="meet-notes-tab">
               <div className="meet-notes-header">
                 <Hash size={12} style={{ color: "#6366f1" }} />
                 <span>Shared Notes</span>
-                <span style={{ marginLeft: "auto", fontSize: 10, color: "#334155" }}>Sync tự động</span>
+                <span
+                  style={{ marginLeft: "auto", fontSize: 10, color: "#334155" }}
+                >
+                  Sync tự động
+                </span>
               </div>
               <textarea
                 className="meet-notes-area"
                 value={sharedNotes}
-                onChange={e => updateNotes(e.target.value)}
+                onChange={(e) => updateNotes(e.target.value)}
                 placeholder="Ghi chú cuộc họp... (đồng bộ realtime với team)"
               />
             </div>
@@ -790,7 +1494,12 @@ export default function MeetingRoomPage() {
         </div>
       </div>
 
-      {selectedProfileId && <ProfileModal userId={selectedProfileId} onClose={() => setSelectedProfileId(null)} />}
+      {selectedProfileId && (
+        <ProfileModal
+          userId={selectedProfileId}
+          onClose={() => setSelectedProfileId(null)}
+        />
+      )}
 
       <style>{`
         /* ── Profile Modal ── */
@@ -997,10 +1706,11 @@ export default function MeetingRoomPage() {
           padding: 4px 6px; cursor: grab; color: #334155;
           display: flex; align-items: center;
         }
-        .meet-tb-group { display: flex; gap: 4px; }
+        .meet-tb-group { display: flex; gap: 8px; }
         .meet-tb-btn {
           display: flex; flex-direction: column; align-items: center; gap: 3px;
           padding: 7px 10px; border-radius: 12px;
+          text-wrap: nowrap;
           border: 1px solid rgba(255,255,255,0.06);
           background: rgba(255,255,255,0.04);
           color: #94a3b8; cursor: pointer; transition: 0.2s;
@@ -1112,40 +1822,27 @@ export default function MeetingRoomPage() {
           background: rgba(79,142,247,0.12); color: #7eb8ff;
         }
 
-        .meet-chat-messages { flex: 1; overflow-y: auto; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
-        .meet-chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 32px 16px; }
+        .meet-chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+        .meet-chat-row { display: flex; gap: 8px; max-width: 90%; align-self: flex-start; }
+        .meet-chat-row.is-me { align-self: flex-end; }
+        .meet-chat-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; flex-shrink: 0; overflow: hidden; margin-top: 2px; }
+        .meet-chat-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .meet-chat-avatar.is-me { background: #4f46e5; border: 2px solid rgba(255,255,255,0.1); }
+        
+        .meet-chat-bubble-wrap { display: flex; flex-direction: column; gap: 2px; max-width: calc(100% - 36px); }
+        .meet-chat-bubble-wrap.is-me { align-items: flex-end; }
+        .meet-chat-meta { display: flex; gap: 6px; align-items: baseline; margin-bottom: 2px; }
+        .meet-chat-author { font-size: 10px; font-weight: 700; color: #7eb8ff; cursor: pointer; }
+        .meet-chat-time { font-size: 9px; color: #475569; }
 
-        .meet-msg-row {
-          display: flex; gap: 8px; align-items: flex-start;
-          padding: 3px 6px; border-radius: 8px;
-          transition: background 0.1s; position: relative;
-        }
-        .meet-msg-row:hover { background: rgba(255,255,255,0.02); }
-        .meet-msg-avatar {
-          width: 28px; height: 28px; border-radius: 7px;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 12px; font-weight: 800; color: white;
-          flex-shrink: 0; margin-top: 2px;
-        }
-        .meet-msg-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
-        .meet-msg-meta.mine { flex-direction: row-reverse; }
-        .meet-msg-author { font-size: 12px; font-weight: 700; color: #94a3b8; }
-        .meet-msg-time { font-size: 10px; color: #334155; }
         .meet-bubble {
-          display: inline-block;
-          padding: 7px 10px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 4px 10px 10px 10px;
-          font-size: 13px; color: #cbd5e1; line-height: 1.55;
-          max-width: 85%; word-wrap: break-word;
+          padding: 8px 12px; border-radius: 12px;
+          background: rgba(255,255,255,0.05);
+          color: #e2e8f0; font-size: 12px;
+          line-height: 1.5; word-break: break-word;
         }
-        .meet-bubble.mine {
-          background: linear-gradient(135deg, rgba(79,70,229,0.25), rgba(124,58,237,0.2));
-          border-color: rgba(79,70,229,0.25);
-          border-radius: 10px 4px 10px 10px;
-          color: #e2e8f0;
-        }
+        .meet-bubble.mine { background: #6366f1; color: white; border-bottom-right-radius: 2px; }
+        .meet-bubble:not(.mine) { border-top-left-radius: 2px; }
         .meet-msg-actions {
           position: absolute; top: 50%; right: 6px;
           transform: translateY(-50%);
@@ -1195,6 +1892,14 @@ export default function MeetingRoomPage() {
           font-size: 11px; flex-shrink: 0;
         }
         .meet-reply-bar { width: 3px; background: #6366f1; border-radius: 2px; align-self: stretch; }
+
+        .meet-screen-sharer-tag {
+          position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+          background: rgba(16,185,129,0.9); color: white; padding: 4px 12px;
+          border-radius: 20px; font-size: 11px; font-weight: 700;
+          display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          z-index: 10;
+        }
 
         .meet-chat-input-zone { padding: 10px 10px 12px; flex-shrink: 0; }
         .meet-input-box {

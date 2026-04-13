@@ -1,12 +1,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import useStore from '../store/useStore';
 import {
   LayoutDashboard, FolderKanban, Brain, Calendar, AlertTriangle,
   Users, Settings, Bell, ChevronLeft, ChevronRight, Zap,
-  MessageSquare, GitMerge, Shield, Target, LogOut, Search
+  MessageSquare, GitMerge, Shield, Target, LogOut, Search, Headphones
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const navItems = [
   { section: 'Overview', items: [
@@ -39,7 +40,7 @@ function NavItemComp({ item, collapsed }) {
 }
 
 export default function Layout() {
-  const { user, logout, loadNotifications, loadUsers, unreadCount, sidebarOpen, toggleSidebar } = useStore();
+  const { user, logout, loadNotifications, loadUsers, unreadCount, sidebarOpen, toggleSidebar, activeMeeting } = useStore();
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef(null);
   const location = useLocation();
@@ -61,7 +62,13 @@ export default function Layout() {
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
-        if (msg.type === 'notification') loadNotifications();
+        if (msg.type === 'notification') {
+          loadNotifications();
+          toast.success(msg.notification?.message || 'Bạn có thông báo mới!', {
+            icon: '🔔',
+            duration: 5000
+          });
+        }
       } catch (err) {
         console.error(err);
       }
@@ -100,6 +107,10 @@ export default function Layout() {
           ))}
 
           {!collapsed && <div className="nav-section-label">Settings</div>}
+          <NavLink to="/profile" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} style={{ width: '100%', textDecoration: 'none' }}>
+            <Users size={18} />
+            {!collapsed && <span>Profile</span>}
+          </NavLink>
           <button className="nav-item" onClick={logout} style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer' }}>
             <LogOut size={18} />
             {!collapsed && <span>Logout</span>}
@@ -108,7 +119,9 @@ export default function Layout() {
 
         {!collapsed && (
           <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="avatar avatar-sm">{initials}</div>
+            <div className="avatar avatar-sm" style={{ backgroundColor: `hsl(${user?.name?.charCodeAt(0) * 40}, 50%, 50%)`, overflow: 'hidden' }}>
+              {user?.avatar ? <img src={user.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', truncate: true }}>{user?.name}</div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{user?.role?.replace('_', ' ')}</div>
@@ -127,6 +140,13 @@ export default function Layout() {
         </span>
 
         <div className="topbar-right">
+          {activeMeeting && !location.pathname.includes('/room') && (
+            <Link to={`/meetings/${activeMeeting.id}/room`} className="ongoing-meet-pill">
+              <Headphones size={12} className="beat-animation" />
+              <span>Meeting đang diễn ra...</span>
+            </Link>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)', background: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)' }}>
             <Zap size={12} style={{ color: 'var(--primary)' }} />
             AI Ready
@@ -139,7 +159,9 @@ export default function Layout() {
             </button>
           </NavLink>
 
-          <div className="avatar" title={user?.name}>{initials}</div>
+          <div className="avatar" title={user?.name} style={{ backgroundColor: `hsl(${user?.name?.charCodeAt(0) * 40}, 50%, 50%)`, overflow: 'hidden' }}>
+            {user?.avatar ? <img src={user.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+          </div>
         </div>
       </header>
 

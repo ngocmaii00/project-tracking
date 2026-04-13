@@ -74,6 +74,22 @@ router.post('/request', authenticate, async (req, res) => {
       VALUES ($1, $2, $3, 'pending')
     `, [id, req.user.id, friendId]);
 
+    // Send realtime notification
+    if (req.app.locals.broadcastToUser) {
+      req.app.locals.broadcastToUser(friendId, {
+        type: 'friend_request',
+        requesterId: req.user.id,
+        requesterName: req.user.name,
+        requesterAvatar: req.user.avatar
+      });
+      req.app.locals.broadcastToUser(friendId, {
+        type: 'notification',
+        content: `${req.user.name} đã gửi lời mời kết bạn!`,
+        icon: 'user_plus'
+      });
+      console.log(`[FriendRequest] Broadcasted to ${friendId} from ${req.user.id}`);
+    }
+
     res.json({ success: true, id });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -93,7 +109,20 @@ router.post('/respond', authenticate, async (req, res) => {
         WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)
       `, [req.user.id, friendId]);
       
-      // Create a DM conversation optionally or handle it when first message sent
+      // Send realtime notification to THE OTHER person as well
+      if (req.app.locals.broadcastToUser) {
+        req.app.locals.broadcastToUser(friendId, {
+          type: 'friend_accepted',
+          userId: req.user.id,
+          userName: req.user.name,
+          userAvatar: req.user.avatar
+        });
+        req.app.locals.broadcastToUser(friendId, {
+          type: 'notification',
+          content: `${req.user.name} đã chấp nhận lời mời kết bạn!`,
+          icon: 'check_circle'
+        });
+      }
     } else if (action === 'rejected') {
       await query(`
         DELETE FROM friendships 
