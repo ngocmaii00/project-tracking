@@ -18,9 +18,6 @@ const {
   POWERBI_REPORT_ID,
 } = process.env;
 
-/**
- * Lấy Azure AD access token cho Power BI API
- */
 async function getAzureADToken() {
   return new Promise((resolve, reject) => {
     const postData = new URLSearchParams({
@@ -46,8 +43,12 @@ async function getAzureADToken() {
       res.on('end', () => {
         try {
           const data = JSON.parse(body);
-          if (data.access_token) resolve(data.access_token);
-          else reject(new Error(data.error_description || 'Failed to get token'));
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data.access_token);
+          } else {
+            console.error('Azure AD Token Error:', data);
+            reject(new Error(data.error_description || `Azure AD Error: ${res.statusCode}`));
+          }
         } catch (e) { reject(e); }
       });
     });
@@ -57,14 +58,38 @@ async function getAzureADToken() {
   });
 }
 
+async function getReportDetails(accessToken, reportId, workspaceId) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.powerbi.com',
+      path: `/v1.0/myorg/groups/${workspaceId}/reports/${reportId}`,
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(data);
+          if (res.statusCode === 200) resolve(result);
+          else reject(new Error(result.error?.message || `Failed to get report details: ${res.statusCode}`));
+        } catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 /**
  * Lấy embed token từ Power BI REST API
  */
-async function getEmbedToken(accessToken, reportId, workspaceId) {
+async function getEmbedToken(accessToken, reportId, workspaceId, datasetId) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       reports: [{ id: reportId }],
-      datasets: [],
+      datasets: datasetId ? [{ id: datasetId }] : [],
       targetWorkspaces: [{ id: workspaceId }],
     });
 
@@ -84,7 +109,13 @@ async function getEmbedToken(accessToken, reportId, workspaceId) {
       res.on('data', chunk => { data += chunk; });
       res.on('end', () => {
         try {
-          resolve(JSON.parse(data));
+          const result = JSON.parse(data);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(result);
+          } else {
+            console.error('Power BI API Error:', result);
+            reject(new Error(result.error?.message || `Power BI API Error: ${res.statusCode}`));
+          }
         } catch (e) { reject(e); }
       });
     });
@@ -99,6 +130,10 @@ async function getEmbedToken(accessToken, reportId, workspaceId) {
  * Cấp embed token cho Power BI Embedded SDK ở frontend
  */
 router.get('/embed-token', authenticate, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
   try {
     if (!POWERBI_CLIENT_ID || !POWERBI_CLIENT_SECRET || !POWERBI_TENANT_ID) {
       return res.json({
@@ -116,14 +151,22 @@ router.get('/embed-token', authenticate, async (req, res) => {
     }
 
     const accessToken = await getAzureADToken();
-    const embedTokenData = await getEmbedToken(accessToken, reportId, workspaceId);
+    
+    // Tự động tìm Dataset ID gắn với báo cáo
+    const reportData = await getReportDetails(accessToken, reportId, workspaceId);
+    if (!reportData.datasetId) {
+      throw new Error('Could not find datasetId for the specified report.');
+    }
+
+    const embedTokenData = await getEmbedToken(accessToken, reportId, workspaceId, reportData.datasetId);
 
     res.json({
       configured: true,
       embedToken: embedTokenData.token,
-      embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${reportId}&groupId=${workspaceId}`,
+      embedUrl: reportData.embedUrl || `https://app.powerbi.com/reportEmbed?reportId=${reportId}&groupId=${workspaceId}`,
       reportId,
       workspaceId,
+      datasetId: reportData.datasetId,
       expiresAt: embedTokenData.expiration,
     });
   } catch (err) {
