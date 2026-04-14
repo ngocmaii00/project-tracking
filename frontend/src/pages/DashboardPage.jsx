@@ -387,39 +387,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Azure Service Status Banner */}
-      <div
-        style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}
-      >
-        {[
-          { label: "Azure AI Foundry", icon: "🤖", env: "ai" },
-          { label: "Power BI", icon: "📊", env: "pbi" },
-          { label: "Cosmos DB", icon: "🌐", env: "cosmos" },
-          { label: "AI Search", icon: "🔍", env: "search" },
-          { label: "Blob Storage", icon: "📦", env: "blob" },
-          { label: "GitHub", icon: "🐙", env: "github" },
-        ].map((s) => (
-          <div
-            key={s.env}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              background: "var(--bg-elevated)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: "4px 10px",
-              fontSize: 12,
-              color: "var(--text-muted)",
-            }}
-          >
-            <span>{s.icon}</span>
-            <span>{s.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* View Tabs: Overview vs Power BI */}
       <div
         style={{
           display: "flex",

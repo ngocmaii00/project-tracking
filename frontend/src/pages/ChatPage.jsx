@@ -2010,36 +2010,6 @@ export default function ChatPage() {
             )}
           </div>
         </div>
-
-        <div className="cwb-sidebar-footer">
-          <div className="cwb-user-pill">
-            <div className="cwb-user-av">
-              {user.avatar ? (
-                <img
-                  src={getAvatar(user.avatar)}
-                  alt=""
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: "inherit",
-                    objectFit: "cover",
-                  }}
-                />
-              ) : (
-                user.name[0]
-              )}
-            </div>
-            <div className="cwb-user-info">
-              <span className="cwb-user-name">{user.name}</span>
-              <span className="cwb-user-role">● Online</span>
-            </div>
-            <Settings
-              size={13}
-              className="cwb-settings-icon"
-              onClick={() => setShowSettings(true)}
-            />
-          </div>
-        </div>
       </aside>
 
       {/* ── Main ── */}
@@ -2144,12 +2114,6 @@ export default function ChatPage() {
               onClick={() => initiateCall("video")}
             >
               <Video size={17} />
-            </button>
-            <button
-              className="cwb-icon-btn"
-              onClick={() => toast("Tùy chọn đoạn chat", { icon: "💬" })}
-            >
-              <MoreVertical size={17} />
             </button>
           </div>
         </header>
