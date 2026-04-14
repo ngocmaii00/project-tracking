@@ -422,74 +422,83 @@ export default function DashboardPage() {
       {activeTab === "powerbi" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div className="grid-2">
-            <div className="card card-pbi" style={{ overflow: "hidden", height: 400, backgroundColor: "white" }}>
-              <div className="card-header">
+            <div className="card card-pbi" style={{ overflow: "hidden", height: 420, backgroundColor: "white", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.3)" }}>
+              <div className="card-header" style={{ borderBottom: "1px solid #f0f0f0", padding: "12px 20px" }}>
                 <span className="card-title-powerBI">
                   <BarChart2 size={18} /> Project Health Dashboard
                 </span>
                 <span
                   style={{
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    background: "rgba(242,199,17,0.12)",
-                    padding: "2px 8px",
-                    borderRadius: 6,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "#0078D4",
+                    background: "rgba(0,120,212,0.1)",
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px"
                   }}
                 >
-                  Power BI Embedded
+                  Live Data
                 </span>
               </div>
               <PowerBIPanel
                 reportName="Project Health"
                 pageName="ProgressPage"
-                height={450}
+                height={420}
               />
             </div>
-            <div className="card card-pbi" style={{ overflow: "hidden", height: 400, backgroundColor: "white" }}>
-              <div className="card-header">
+            <div className="card card-pbi" style={{ overflow: "hidden", height: 420, backgroundColor: "white", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.3)" }}>
+              <div className="card-header" style={{ borderBottom: "1px solid #f0f0f0", padding: "12px 20px" }}>
                 <span className="card-title-powerBI">
                   <BarChart2 size={18} /> Risk & Resource Report
                 </span>
                 <span
                   style={{
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    background: "rgba(242,199,17,0.12)",
-                    padding: "2px 8px",
-                    borderRadius: 6,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "#0078D4",
+                    background: "rgba(0,120,212,0.1)",
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px"
                   }}
                 >
-                  Power BI Embedded
+                  Analysis
                 </span>
               </div>
               <PowerBIPanel
                 reportName="Risk & Resource"
                 pageName="RiskPage"
-                height={450}
+                height={420}
               />
             </div>
           </div>
-          <div className="card card-pbi" style={{ overflow: "hidden", height: 750, backgroundColor: "white" }}>
-            <div className="card-header">
+          <div className="card card-pbi" style={{ overflow: "hidden", height: 750, backgroundColor: "white", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.3)" }}>
+            <div className="card-header" style={{ borderBottom: "1px solid #f0f0f0", padding: "12px 20px" }}>
               <span className="card-title-powerBI">
                 <BarChart2 size={18} /> Velocity & Burndown Chart
               </span>
               <span
                 style={{
-                  fontSize: 11,
-                  color: "var(--text-muted)",
-                  background: "rgba(242,199,17,0.12)",
-                  padding: "2px 8px",
-                  borderRadius: 6,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#0078D4",
+                  background: "rgba(0,120,212,0.1)",
+                  padding: "3px 8px",
+                  borderRadius: 4,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px"
                 }}
               >
-                Power BI Embedded
+                Sprint Metrics
               </span>
             </div>
             <PowerBIPanel
               reportName="Velocity Burndown"
               pageName="VelocityPage"
-              height={280}
+              height={650}
             />
           </div>
         </div>

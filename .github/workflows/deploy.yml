@@ -100,6 +100,11 @@ jobs:
         working-directory: backend
         run: npm ci --omit=dev
 
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
         with:

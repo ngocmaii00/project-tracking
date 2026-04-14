@@ -308,12 +308,13 @@ body {
 }
 
 .card-title-powerBI {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--bg-card-hover);
+  font-size: 15px;
+  font-weight: 800;
+  color: #003a66;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  letter-spacing: -0.2px;
 }
 
 /* ── Stat Cards ───────────────────────────────────────────── */
