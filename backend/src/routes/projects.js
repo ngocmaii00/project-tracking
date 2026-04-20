@@ -146,7 +146,13 @@ router.get('/:id/analytics', authenticate, async (req, res) => {
       owner: t.owner_id,
       progress: t.completion_pct,
       isCritical: cpResult.critical_path_ids.includes(t.id),
-      dependencies: typeof t.dependencies === 'string' ? JSON.parse(t.dependencies) : (t.dependencies || [])
+      dependencies: (() => {
+        try {
+          return typeof t.dependencies === 'string' ? JSON.parse(t.dependencies || '[]') : (t.dependencies || []);
+        } catch (e) {
+          return [];
+        }
+      })()
     }));
 
     res.json({

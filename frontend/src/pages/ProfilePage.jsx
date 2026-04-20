@@ -26,10 +26,6 @@ export default function ProfilePage() {
   return (
     <div className="profile-page-container">
       <div className="profile-header">
-        <Link to="/dashboard" className="back-link">
-          <ArrowLeft size={20} />
-          <span>Quay lại</span>
-        </Link>
         <h1>Thông tin cá nhân</h1>
       </div>
 
@@ -124,7 +120,7 @@ export default function ProfilePage() {
           margin-bottom: 30px;
         }
         .profile-header h1 {
-          font-size: 24px;
+          font-size: 32px;
           font-weight: 700;
           color: white;
           margin: 0;

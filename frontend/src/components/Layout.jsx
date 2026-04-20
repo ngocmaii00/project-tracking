@@ -8,6 +8,8 @@ import {
   MessageSquare, GitMerge, Shield, Target, LogOut, Search, Headphones
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatDistanceToNow } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 const navItems = [
   { section: 'Overview', items: [
@@ -40,8 +42,10 @@ function NavItemComp({ item, collapsed }) {
 }
 
 export default function Layout() {
-  const { user, logout, loadNotifications, loadUsers, unreadCount, sidebarOpen, toggleSidebar, activeMeeting } = useStore();
+  const { user, logout, loadNotifications, loadUsers, unreadCount, notifications, markRead, markAllRead, sidebarOpen, toggleSidebar, activeMeeting } = useStore();
   const [wsConnected, setWsConnected] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef(null);
   const wsRef = useRef(null);
   const location = useLocation();
   const collapsed = !sidebarOpen;
@@ -80,6 +84,16 @@ export default function Layout() {
 
     return () => { ws.close(); clearInterval(ping); };
   }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const initials = user?.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?';
 
@@ -152,12 +166,62 @@ export default function Layout() {
             AI Ready
           </div>
 
-          <NavLink to="/dashboard" style={{ position: 'relative' }}>
-            <button className="btn btn-ghost btn-icon" style={{ position: 'relative' }}>
+          <div style={{ position: 'relative' }} ref={notifRef}>
+            <button
+              className={`btn btn-ghost btn-icon ${showNotifications ? 'active' : ''}`}
+              onClick={() => setShowNotifications(!showNotifications)}
+              style={{ position: 'relative' }}
+            >
               <Bell size={18} />
               {unreadCount > 0 && <span className="notif-dot" />}
             </button>
-          </NavLink>
+
+            {showNotifications && (
+              <div className="notification-dropdown">
+                <div className="notif-header">
+                  <h3>Thông báo</h3>
+                  {unreadCount > 0 && (
+                    <button className="btn-link" onClick={markAllRead}>Đánh dấu tất cả đã đọc</button>
+                  )}
+                </div>
+                <div className="notif-list">
+                  {notifications.length > 0 ? (
+                    notifications.map(n => (
+                      <div
+                        key={n.id}
+                        className={`notif-item ${!n.is_read ? 'unread' : ''}`}
+                        onClick={() => {
+                          if (!n.is_read) markRead(n.id);
+                          // Option: redirect based on notification type/link
+                          setShowNotifications(false);
+                        }}
+                      >
+                        <div className="notif-icon-wrapper">
+                          <Bell size={16} />
+                        </div>
+                        <div className="notif-content">
+                          <div className="notif-message">{n.message}</div>
+                          <div className="notif-time">
+                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: vi })}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="notif-empty">
+                      <div className="notif-empty-icon">🔔</div>
+                      <p>Không có thông báo nào</p>
+                    </div>
+                  )}
+                </div>
+                {notifications.length > 0 && (
+                  <div className="notif-footer">
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Bạn đã xem hết thông báo</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="avatar" title={user?.name} style={{ backgroundColor: `hsl(${user?.name?.charCodeAt(0) * 40}, 50%, 50%)`, overflow: 'hidden' }}>
             {user?.avatar ? <img src={user.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}

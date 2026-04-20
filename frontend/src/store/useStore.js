@@ -38,6 +38,20 @@ const useStore = create(
       set(s => { s.user = data.user; });
       return data;
     },
+    createUser: async (payload) => {
+      const { data } = await api.post('/auth/users', payload);
+      await get().loadUsers();
+      toast.success('User created!');
+      return data;
+    },
+    changeUserRole: async (userId, role) => {
+      await api.put(`/auth/users/${userId}/role`, { role });
+      set(s => {
+        const u = s.users.find(x => x.id === userId);
+        if (u) u.role = role;
+      });
+      toast.success('User role updated!');
+    },
 
     projects: [],
     currentProject: null,
@@ -195,6 +209,38 @@ const useStore = create(
       const { data } = await api.get(`/ai/single-source-validator/${project_id}`);
       return data;
     },
+
+    aiConversations: JSON.parse(localStorage.getItem('cwb_ai_chats') || '[]'),
+    activeAiConversationId: localStorage.getItem('cwb_ai_active_id'),
+
+    createNewAiChat: () => set(s => {
+      const id = Date.now().toString();
+      const newChat = { id, title: 'New Conversation', messages: [], createdAt: new Date().toISOString() };
+      s.aiConversations.unshift(newChat);
+      s.activeAiConversationId = id;
+      localStorage.setItem('cwb_ai_chats', JSON.stringify(s.aiConversations));
+      localStorage.setItem('cwb_ai_active_id', id);
+    }),
+    setActiveAiChat: (id) => set(s => {
+      s.activeAiConversationId = id;
+      localStorage.setItem('cwb_ai_active_id', id);
+    }),
+    updateAiChatMessages: (id, messages, title) => set(s => {
+      const chat = s.aiConversations.find(c => c.id === id);
+      if (chat) {
+        chat.messages = messages;
+        if (title) chat.title = title;
+        localStorage.setItem('cwb_ai_chats', JSON.stringify(s.aiConversations));
+      }
+    }),
+    deleteAiChat: (id) => set(s => {
+      s.aiConversations = s.aiConversations.filter(c => c.id !== id);
+      if (s.activeAiConversationId === id) {
+        s.activeAiConversationId = s.aiConversations[0]?.id || null;
+      }
+      localStorage.setItem('cwb_ai_chats', JSON.stringify(s.aiConversations));
+      localStorage.setItem('cwb_ai_active_id', s.activeAiConversationId || '');
+    }),
 
     meetings: [],
 

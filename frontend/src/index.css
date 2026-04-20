@@ -113,7 +113,7 @@ body {
   max-width: 1600px;
 }
 
-.powerbi-embed-container, 
+.powerbi-embed-container,
 .powerbi-embed-container .powerbi-embed,
 .powerbi-embed-container .powerbi-embed iframe {
   width: 100% !important;
@@ -1226,13 +1226,139 @@ tr:hover td {
 /* ── Notification dot ──────────────────────────────────────── */
 .notif-dot {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 8px;
-  height: 8px;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--danger);
-  border: 2px solid var(--bg-base);
+  border: 2px solid var(--bg-surface);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+/* ── Notification Dropdown ─────────────────────────────────── */
+.notification-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: -80px;
+  width: 380px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
+  z-index: 1000;
+  overflow: hidden;
+  animation: slideUp 0.2s ease;
+}
+
+.notif-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.notif-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.notif-header .btn-link {
+  font-size: 12px;
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+
+.notif-header .btn-link:hover {
+  text-decoration: underline;
+}
+
+.notif-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notif-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  gap: 12px;
+  position: relative;
+}
+
+.notif-item:hover {
+  background: var(--bg-card-hover);
+}
+
+.notif-item.unread {
+  background: rgba(79, 142, 247, 0.05);
+}
+
+.notif-item.unread::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--primary);
+}
+
+.notif-icon-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
+.notif-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-message {
+  font-size: 13.5px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.notif-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.notif-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.notif-empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.notif-footer {
+  padding: 12px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.01);
 }
 
 /* ── Code / Mono ───────────────────────────────────────────── */
@@ -1283,4 +1409,177 @@ tr:hover td {
   100% {
     transform: scale(1);
   }
+}
+
+/* ── AI Assistant Cards (Vibrant Version) ────────────────────────────────────── */
+.smart-markdown {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.ai-card {
+  background: rgba(30, 45, 74, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px 20px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.ai-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  border-radius: 16px 0 0 16px;
+}
+
+.ai-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.ai-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.3px;
+}
+
+.ai-card-body {
+  font-size: 14.5px;
+  color: #e2e8f0;
+  line-height: 1.8;
+}
+
+/* Specific Card Themes with Vibrant Colors & Gradients */
+.ai-card-cause {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.1) 0%,
+    rgba(30, 58, 138, 0.05) 100%
+  );
+}
+.ai-card-cause::before {
+  background: #3b82f6;
+  box-shadow: 0 0 12px #3b82f6;
+}
+.ai-card-cause .ai-card-title {
+  color: #60a5fa;
+}
+
+.ai-card-risk {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.1) 0%,
+    rgba(153, 27, 27, 0.05) 100%
+  );
+}
+.ai-card-risk::before {
+  background: #ef4444;
+  box-shadow: 0 0 12px #ef4444;
+}
+.ai-card-risk .ai-card-title {
+  color: #f87171;
+}
+
+.ai-card-solution {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.1) 0%,
+    rgba(6, 78, 59, 0.05) 100%
+  );
+}
+.ai-card-solution::before {
+  background: #10b981;
+  box-shadow: 0 0 12px #10b981;
+}
+.ai-card-solution .ai-card-title {
+  color: #34d399;
+}
+
+.ai-card-estimate {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(245, 158, 11, 0.1) 0%,
+    rgba(146, 64, 14, 0.05) 100%
+  );
+}
+.ai-card-estimate::before {
+  background: #f59e0b;
+  box-shadow: 0 0 12px #f59e0b;
+}
+.ai-card-estimate .ai-card-title {
+  color: #fbbf24;
+}
+
+.ai-card-next {
+  border-color: rgba(139, 92, 246, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.1) 0%,
+    rgba(76, 29, 149, 0.05) 100%
+  );
+}
+.ai-card-next::before {
+  background: #8b5cf6;
+  box-shadow: 0 0 12px #8b5cf6;
+}
+.ai-card-next .ai-card-title {
+  color: #a78bfa;
+}
+
+/* AI Table Styles - Elegant Dark Theme */
+.ai-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.ai-table th {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  text-align: left;
+  padding: 14px 18px;
+  font-weight: 700;
+  border-bottom: 2px solid rgba(59, 130, 246, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+}
+
+.ai-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+}
+
+.ai-table tr:last-child td {
+  border-bottom: none;
+}
+.ai-table tr:hover td {
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.ai-thinking-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }

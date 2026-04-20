@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { query, queryOne } = require('../database'); // PostgreSQL
-const { generateToken } = require('../middleware/auth');
+const { generateToken, authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -49,7 +49,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-const { authenticate } = require('../middleware/auth');
+
 
 router.get('/me', authenticate, (req, res) => {
   const { password_hash, ...user } = req.user;
@@ -72,6 +72,31 @@ router.get('/users', authenticate, async (req, res) => {
   try {
     const users = await query('SELECT id, email, name, role, avatar, skills, created_at FROM users ORDER BY name');
     res.json({ users });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/users', authenticate, authorize('project_manager', 'admin'), async (req, res) => {
+  try {
+    const { email, password, name, role } = req.body;
+    if (!email || !password || !name) return res.status(400).json({ error: 'Missing fields' });
+    const hash = await bcrypt.hash(password, 12);
+    const id = uuidv4();
+    await query('INSERT INTO users (id, email, password_hash, name, role) VALUES ($1, $2, $3, $4, $5)',
+      [id, email.toLowerCase(), hash, name, role || 'contributor']);
+    res.status(201).json({ success: true, userId: id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/users/:id/role', authenticate, authorize('project_manager', 'admin'), async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!role) return res.status(400).json({ error: 'Role required' });
+    await query('UPDATE users SET role = $1 WHERE id = $2', [role, req.params.id]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

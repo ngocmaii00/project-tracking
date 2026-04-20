@@ -135,7 +135,10 @@ function SettingsModal({ user, onClose }) {
   );
 }
 
-function CallModal({ activeConversation, type, status, seconds, onClose }) {
+function CallModal({ activeConversation, type, status, seconds, onClose, peer }) {
+  const peerName = peer?.name || activeConversation.name || "Người dùng CWB";
+  const peerAvatar = peer?.avatar;
+
   return (
     <div className="cwb-call-overlay">
       <div className="cwb-call-content">
@@ -143,21 +146,22 @@ function CallModal({ activeConversation, type, status, seconds, onClose }) {
           <div
             className="call-avatar"
             style={{
-              background: activeConversation.name
-                ? `hsl(${activeConversation.name.charCodeAt(0) * 40}, 60%, 40%)`
-                : "#6366f1",
+              overflow: "hidden",
+              background: `hsl(${peerName.charCodeAt(0) * 40}, 60%, 40%)`,
             }}
           >
-            {type === "video" ? (
-              <Video size={40} />
+            {peerAvatar ? (
+              <img
+                src={getAvatar(peerAvatar)}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
             ) : (
-              activeConversation.name?.[0] || <PhoneCall size={40} />
+              peerName[0]
             )}
           </div>
         </div>
-        <h2 style={{ color: "white", marginTop: 20 }}>
-          {activeConversation.name || "Người dùng CWB"}
-        </h2>
+        <h2 style={{ color: "white", marginTop: 20 }}>{peerName}</h2>
         <p style={{ color: "#94a3b8" }}>
           {status === "active" ? "Đang đàm thoại" : "Đang đổ chuông..."}
         </p>
@@ -251,10 +255,10 @@ function ProfileModal({ userId, onClose }) {
 
             <div className="profile-actions">
               <button className="profile-btn primary" onClick={onClose}>
-                Nhắn tin
+                Message
               </button>
               <button className="profile-btn ghost" onClick={onClose}>
-                Hồ sơ đầy đủ
+                Full Profile
               </button>
             </div>
           </div>
@@ -308,7 +312,7 @@ function InviteModal({
         );
         setFriends(available);
       } catch (err) {
-        toast.error("Không thể tải danh sách bạn bè");
+        toast.error("Failed to load friends list");
       } finally {
         setLoading(false);
       }
@@ -323,11 +327,11 @@ function InviteModal({
       await api.post(`/chat/conversations/${conversationId}/members`, {
         memberIds: selectedIds,
       });
-      toast.success("Đã gửi lời mời!");
+      toast.success("Invited successfully!");
       onInviteSuccess();
       onClose();
     } catch (err) {
-      toast.error("Lỗi khi mời bạn bè");
+      toast.error("Failed to invite friends");
     } finally {
       setInviting(false);
     }
@@ -347,7 +351,7 @@ function InviteModal({
         style={{ maxWidth: 400 }}
       >
         <div className="cwb-modal-header">
-          <h3>Mời bạn bè vào nhóm</h3>
+          <h3>Invite friends to group</h3>
           <button className="c-icon-btn" onClick={onClose}>
             <X size={18} />
           </button>
@@ -451,7 +455,7 @@ function InviteModal({
             disabled={selectedIds.length === 0 || inviting}
             style={{ flex: 2 }}
           >
-            {inviting ? "Đang gửi..." : `Mời ${selectedIds.length} người bạn`}
+            {inviting ? "Sending..." : `Invite ${selectedIds.length} friends`}
           </button>
         </div>
       </div>
@@ -746,7 +750,6 @@ function MessageItem({
   onReply,
   onTogglePin,
   onOpenProfile,
-  user,
 }) {
   const [showActions, setShowActions] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -831,7 +834,7 @@ function MessageItem({
                 fontWeight: 700,
               }}
             >
-              <Pin size={10} /> ĐÃ GHIM
+              <Pin size={10} /> PINNED
             </div>
           )}
           {msg.replyTo && (
@@ -863,32 +866,54 @@ function MessageItem({
               </div>
             </div>
           )}
-          {msg.msgType === "file" ? (
-            <div className="file-attachment">
-              <div className="file-icon">
-                <File size={20} />
-              </div>
-              <div className="file-info">
-                <div className="file-name">{msg.content}</div>
-                <div className="file-meta">Tài liệu đính kèm</div>
-              </div>
-              <a
-                href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api"}/..${msg.fileUrl}`}
-                target="_blank"
-                rel="noreferrer"
-                className="file-download"
-              >
-                <Download size={16} />
-              </a>
-            </div>
-          ) : (
-            <span
-              className="msg-text-v2"
-              dangerouslySetInnerHTML={{
-                __html: (msg.content || "").replace(/\n/g, "<br/>"),
-              }}
-            />
-          )}
+          {(() => {
+            const mType = (msg.type === "chat_message" ? msg.msgType : msg.type) || "text";
+            
+            if (mType === "image") {
+              return (
+                <div className="msg-image-attachment">
+                  <img 
+                    src={getAvatar(msg.fileUrl)} 
+                    alt={msg.content} 
+                    style={{ maxWidth: '100%', borderRadius: 12, cursor: 'pointer', display: 'block' }}
+                    onClick={() => window.open(getAvatar(msg.fileUrl), '_blank')}
+                  />
+                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>{msg.content}</div>
+                </div>
+              );
+            }
+            
+            if (mType === "file") {
+              return (
+                <div className="file-attachment">
+                  <div className="file-icon">
+                    <File size={20} />
+                  </div>
+                  <div className="file-info">
+                    <div className="file-name">{msg.content}</div>
+                    <div className="file-meta">Attached file</div>
+                  </div>
+                  <a
+                    href={getAvatar(msg.fileUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="file-download"
+                  >
+                    <Download size={16} />
+                  </a>
+                </div>
+              );
+            }
+            
+            return (
+              <span
+                className="msg-text-v2"
+                dangerouslySetInnerHTML={{
+                  __html: (msg.content || "").replace(/\n/g, "<br/>"),
+                }}
+              />
+            );
+          })()}
         </div>
         {msg.reactions && msg.reactions.length > 0 && (
           <div className="msg-reactions">
@@ -974,8 +999,22 @@ function IncomingCallModal({ call, onAnswer, onReject }) {
     <div className="cwb-call-overlay">
       <div className="cwb-call-content">
         <div className="call-avatar-pulse">
-          <div className="call-avatar" style={{ background: "#6366f1" }}>
-            {call.senderName[0]}
+          <div
+            className="call-avatar"
+            style={{
+              overflow: "hidden",
+              background: `hsl(${call.senderName.charCodeAt(0) * 40}, 60%, 40%)`,
+            }}
+          >
+            {call.senderAvatar ? (
+              <img
+                src={getAvatar(call.senderAvatar)}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              call.senderName[0]
+            )}
           </div>
         </div>
         <h2 style={{ color: "white", marginTop: 20 }}>{call.senderName}</h2>
@@ -1196,7 +1235,7 @@ export default function ChatPage() {
               const updated = {
                 ...conv,
                 last_message:
-                  msg.msgType === "file" ? `📄 ${msg.content}` : msg.content,
+                  ["file", "image"].includes(msg.msgType || msg.type) ? `📄 ${msg.content}` : msg.content,
                 last_message_at: msg.createdAt || new Date().toISOString(),
                 unread_count:
                   msg.conversationId !== activeConvIdRef.current &&
@@ -1228,33 +1267,34 @@ export default function ChatPage() {
                 m.id === msg.messageId ? { ...m, is_pinned: msg.isPinned } : m,
               ),
             );
-            toast.success(msg.isPinned ? "Đã ghim tin nhắn" : "Đã bỏ ghim");
+            toast.success(msg.isPinned ? "Pinned message" : "Unpinned message");
           } else if (msg.type === "call_event") {
             if (msg.event === "invite") {
               setIncomingCall({
                 senderId: msg.senderId,
                 senderName: msg.senderName,
+                senderAvatar: msg.senderAvatar,
                 type: msg.callType,
               });
             } else if (msg.event === "accepted") {
-              toast.success(`${msg.senderName} đã nhận cuộc gọi`);
+              toast.success(`${msg.senderName} accepted the call`);
               setActiveCall((prev) =>
                 prev ? { ...prev, status: "active" } : null,
               );
             } else if (msg.event === "rejected") {
-              toast.error(`${msg.senderName} đã từ chối cuộc gọi`);
+              toast.error(`${msg.senderName} rejected the call`);
               setActiveCall(null);
             } else if (msg.event === "hangup") {
-              toast("Cuộc gọi đã kết thúc", { icon: "📞" });
+              toast("Call ended", { icon: "📞" });
               setActiveCall(null);
               setIncomingCall(null);
             }
           } else if (msg.type === "friend_request") {
             loadInitialData(); // Refresh requests list
-            toast("Bạn nhận được một lời mời kết bạn mới!", { icon: "👋" });
+            toast("You received a new friend request!", { icon: "👋" });
           } else if (msg.type === "friend_accepted") {
             loadInitialData(); // Refresh friends list
-            toast(`${msg.userName} đã chấp nhận kết bạn!`, {
+            toast(`${msg.userName} accepted your friend request!`, {
               icon: "✨",
             });
           } else if (msg.type === "notification") {
@@ -1289,13 +1329,15 @@ export default function ChatPage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
+      const isImage = file.type.startsWith("image/");
+      
       // Send file message via WebSocket
       wsRef.current.send(
         JSON.stringify({
           type: "chat_message",
           conversationId: activeConversationId,
           content: file.name,
-          msgType: "file",
+          msgType: isImage ? "image" : "file",
           fileUrl: data.url,
           authorName: user.name,
         }),
@@ -1373,9 +1415,15 @@ export default function ChatPage() {
         targetId: otherMember.id,
         callType: type,
         senderName: user.name,
+        senderAvatar: user.avatar,
       }),
     );
-    setActiveCall({ type, status: "calling", targetId: otherMember.id });
+    setActiveCall({
+      type,
+      status: "calling",
+      targetId: otherMember.id,
+      peer: { name: otherMember.name, avatar: otherMember.avatar },
+    });
   };
 
   const respondToCall = (action) => {
@@ -1394,6 +1442,10 @@ export default function ChatPage() {
         status: "active",
         targetId: incomingCall.senderId,
         incoming: true,
+        peer: {
+          name: incomingCall.senderName,
+          avatar: incomingCall.senderAvatar,
+        },
       });
     }
     setIncomingCall(null);
@@ -1450,9 +1502,17 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // Use setTimeout to ensure DOM is fully painted before calculating scrollHeight
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: "smooth" // smooth scroll looks better!
+          });
+        }
+      }, 50);
     }
-  }, [messages]);
+  }, [viewMessages, typingUsers, messages]);
 
   const searchUsers = async (query) => {
     setIsSearching(true);
@@ -1466,12 +1526,12 @@ export default function ChatPage() {
 
   const sendFriendRequest = async (friendId) => {
     try {
-      const loading = toast.loading("Đang gửi lời mời...");
+      const loading = toast.loading("Sending request...");
       await api.post("/friends/request", { friendId });
-      toast.success("Đã gửi lời mời kết bạn!", { id: loading });
+      toast.success("Friend request sent!", { id: loading });
       searchUsers(search);
     } catch (err) {
-      toast.error("Gửi lời mời thất bại");
+      toast.error("Failed to send request");
       console.error("Request error", err);
     }
   };
@@ -1480,11 +1540,11 @@ export default function ChatPage() {
     try {
       await api.post("/friends/respond", { friendId, action });
       toast.success(
-        action === "accepted" ? "Đã chấp nhận kết bạn" : "Đã từ chối",
+        action === "accepted" ? "Accepted friend request" : "Rejected friend request",
       );
       loadInitialData();
     } catch (err) {
-      toast.error("Lỗi khi xử lý");
+      toast.error("Failed to process request");
     }
   };
 
@@ -1520,20 +1580,20 @@ export default function ChatPage() {
   const handleLeaveGroup = async () => {
     if (!activeConversationId) return;
     setPromptModal({
-      title: "Rời khỏi nhóm",
+      title: "Leave group",
       description:
-        "Bạn có chắc chắn muốn rời khỏi nhóm này không? Bạn sẽ không thể xem tin nhắn trừ khi được mời lại.",
+        "Are you sure you want to leave this group? You won't be able to see messages unless invited back.",
       danger: true,
-      confirmText: "Rời nhóm",
+      confirmText: "Leave group",
       onSubmit: async () => {
         try {
           await api.post(`/chat/conversations/${activeConversationId}/leave`);
-          toast.success("Đã rời nhóm");
+          toast.success("Left group successfully");
           setActiveConversationId(null);
           loadInitialData();
           setPromptModal(null);
         } catch (err) {
-          toast.error("Lỗi khi rời nhóm");
+          toast.error("Failed to leave group");
         }
       },
     });
@@ -1546,11 +1606,11 @@ export default function ChatPage() {
         name,
         avatar,
       });
-      toast.success("Đã cập nhật nhóm");
+      toast.success("Updated group successfully");
       loadInitialData();
       setPromptModal(null);
     } catch (err) {
-      toast.error("Lỗi khi cập nhật");
+      toast.error("Failed to update group");
     }
   };
 
@@ -1656,14 +1716,14 @@ export default function ChatPage() {
           </div>
           <button
             className="cwb-new-btn"
-            title="Tạo nhóm"
+            title="Create group"
             onClick={() => {
               setPromptModal({
-                title: "Tạo nhóm mới",
+                title: "Create new group",
                 description:
-                  "Tên nhóm sẽ giúp mọi người nhận diện cuộc trò chuyện này.",
+                  "Group name will help everyone identify this conversation.",
                 placeholder: "Ví dụ: Team Design, Ăn chơi...",
-                confirmText: "Tạo nhóm",
+                confirmText: "Create group",
                 value: "",
                 onSubmit: (val) => {
                   if (val) createGroup(val, []);
@@ -1679,7 +1739,7 @@ export default function ChatPage() {
         <div className="cwb-sidebar-search">
           <Search size={13} />
           <input
-            placeholder="Tìm bạn bè hoặc khám phá..."
+            placeholder="Search..."
             value={search}
             onFocus={() => {
               if (!search) searchUsers("");
@@ -1710,7 +1770,7 @@ export default function ChatPage() {
         {searchResults.length > 0 && (
           <div className="search-results-overlay">
             <div className="search-overlay-header">
-              <span>{search ? "Kết quả tìm kiếm" : "Gợi ý kết bạn"}</span>
+              <span>{search ? "Search Results" : "Suggested Friends"}</span>
               <button onClick={() => setSearchResults([])}>
                 <X size={12} />
               </button>
@@ -1726,7 +1786,7 @@ export default function ChatPage() {
                   }}
                 >
                   {u.avatar ? (
-                    <img src={getAvatar(u.avatar)} alt="" />
+                    <img src={getAvatar(u.avatar)} width={36} height={36} style={{ borderRadius: '8px' }} />
                   ) : (
                     u.name[0]
                   )}
@@ -1755,7 +1815,7 @@ export default function ChatPage() {
                   </button>
                 ) : u.friendshipStatus === "pending" ? (
                   <div className="friend-status-label">
-                    {u.isRequester ? "Đã gửi" : "Chờ bạn duyệt"}
+                    {u.isRequester ? "Sent" : "Pending"}
                   </div>
                 ) : (
                   <button
@@ -1775,7 +1835,7 @@ export default function ChatPage() {
           {friendRequests.length > 0 && (
             <div className="cwb-group">
               <div className="cwb-group-label" style={{ color: "#f59e0b" }}>
-                YÊU CẦU KẾT BẠN ({friendRequests.length})
+                FRIEND REQUESTS ({friendRequests.length})
               </div>
               {friendRequests.map((req) => (
                 <div key={req.id} className="cwb-ch-btn dm" style={{ gap: 8 }}>
@@ -1818,7 +1878,7 @@ export default function ChatPage() {
               ) : (
                 <ChevronRight size={12} />
               )}
-              <span>DANH SÁCH BẠN BÈ ({friends.length})</span>
+              <span>LIST FRIENDS ({friends.length})</span>
             </button>
             {dmsExpanded &&
               friends.map((friend) => (
@@ -1868,7 +1928,7 @@ export default function ChatPage() {
               ) : (
                 <ChevronRight size={12} />
               )}
-              <span>TẤT CẢ CUỘC TRÒ CHUYỆN</span>
+              <span>ALL CONVERSATIONS</span>
             </button>
             {channelsExpanded && (
               <AnimatePresence mode="popLayout" initial={false}>
@@ -2077,15 +2137,15 @@ export default function ChatPage() {
                     )?.name || "Loading..."
                   : activeViewConversation.name ||
                     (activeConversationId
-                      ? "Đang chuẩn bị..."
-                      : "Chọn cuộc trò chuyện")}
+                      ? "Loading..."
+                      : "Select a conversation")}
               </h3>
               <p className="cwb-channel-desc">
                 {activeViewConversation.type === "dm"
-                  ? "Trò chuyện cá nhân"
+                  ? "Personal conversation"
                   : activeViewConversation.members
-                    ? `${activeViewConversation.members.length} thành viên`
-                    : "Tải dữ liệu..."}
+                    ? `${activeViewConversation.members.length} members`
+                    : "Loading..."}
               </p>
             </div>
           </div>
@@ -2119,7 +2179,6 @@ export default function ChatPage() {
         </header>
 
         <div className="cwb-content-wrap">
-          {/* Message list */}
           <div className="cwb-messages" ref={scrollRef}>
             {!viewConversationId && !messagesLoading ? (
               <div
@@ -2138,7 +2197,7 @@ export default function ChatPage() {
                     style={{ margin: "0 auto 16px", color: "#6366f1" }}
                   />
                   <p style={{ fontSize: 13 }}>
-                    Hãy chọn một cuộc thảo luận để bắt đầu
+                    Select a conversation to start
                   </p>
                 </div>
               </div>
@@ -2160,21 +2219,20 @@ export default function ChatPage() {
                   </div>
                   <h2 className="cwb-welcome-title">
                     {activeViewConversation.type === "dm"
-                      ? `Cuộc trò chuyện với ${activeViewConversation.members?.find((m) => m.id !== user.id)?.name || "..."}`
-                      : `Chào mừng đến ${activeViewConversation.name || "nhóm"}!`}
+                      ? `Conversation with ${activeViewConversation.members?.find((m) => m.id !== user.id)?.name || "..."}`
+                      : `Welcome to ${activeViewConversation.name || "group"}!`}
                   </h2>
                   <p className="cwb-welcome-desc">
                     {activeViewConversation.type === "dm"
-                      ? "Đây là nơi bắt đầu cuộc trò chuyện riêng tư giữa bạn và người này."
-                      : "Gửi tin nhắn đầu tiên để bắt đầu thảo luận với mọi người."}
+                      ? "This is where you start a private conversation with this person."
+                      : "Send the first message to start the discussion with everyone."}
                   </p>
                 </div>
 
                 {filteredMessages.map((m, i) => {
                   const isMe =
                     m.author_id === user.id || m.authorId === user.id;
-                  const prev = filteredMessages[i - 1];
-                  const hideHeader = false; // Disable grouping to show avatar for every message
+                  const hideHeader = false;
 
                   return (
                     <MessageItem
@@ -2207,13 +2265,12 @@ export default function ChatPage() {
                     .filter((u) => u.conversationId === activeConversationId)
                     .map((u) => u.name)
                     .join(", ")}{" "}
-                  đang nhập...
+                  is typing...
                 </span>
               </div>
             )}
           </div>
 
-          {/* Input */}
           <div className="cwb-input-zone">
             {replyTo && (
               <div className="cwb-reply-bar">
@@ -2274,7 +2331,7 @@ export default function ChatPage() {
                   type="button"
                   className="cwb-tool"
                   onClick={() =>
-                    toast("Tính năng ghi âm yêu cầu quyền truy cập mic", {
+                    toast("Recording feature requires microphone access", {
                       icon: "🎙️",
                     })
                   }
@@ -2293,7 +2350,7 @@ export default function ChatPage() {
                     sendTypingEvent();
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Nhắn tin cho ${activeViewConversation.type === "dm" ? activeViewConversation.members?.find((m) => m.id !== user.id)?.name : activeViewConversation.name || "..."}`}
+                  placeholder={`Message ${activeViewConversation.type === "dm" ? activeViewConversation.members?.find((m) => m.id !== user.id)?.name : activeViewConversation.name || "..."}`}
                   rows={1}
                 />
                 <button
@@ -2317,7 +2374,6 @@ export default function ChatPage() {
         </div>
       </main>
 
-      {/* ── AI Deadline Panel ── */}
       {showAIPanel && (
         <div className="cwb-right-panel">
           <AIDeadlinePanel
@@ -2335,7 +2391,7 @@ export default function ChatPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Users size={16} style={{ color: "#6366f1" }} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: "white" }}>
-                  Thành viên ({activeViewConversation.members?.length || 0})
+                  Members ({activeViewConversation.members?.length || 0})
                 </span>
               </div>
               <button
@@ -2355,7 +2411,7 @@ export default function ChatPage() {
                   letterSpacing: 1,
                 }}
               >
-                THÀNH VIÊN — {activeViewConversation.members?.length || 0}
+                MEMBERS — {activeViewConversation.members?.length || 0}
               </div>
               {activeViewConversation.members?.map((m) => (
                 <div key={m.id} className="member-row">
@@ -2407,7 +2463,7 @@ export default function ChatPage() {
                 onClick={() => setShowInviteModal(true)}
               >
                 <UserPlus size={14} />
-                Mời thành viên
+                Invite members
               </button>
 
               {activeViewConversation.type === "group" && (
@@ -2427,17 +2483,17 @@ export default function ChatPage() {
                       textTransform: "uppercase",
                     }}
                   >
-                    Cài đặt nhóm
+                    Group Settings
                   </div>
                   <button
                     className="cwb-panel-btn"
                     onClick={() => {
                       setPromptModal({
-                        title: "Đổi tên nhóm",
+                        title: "Rename Group",
                         description:
-                          "Nhập tên mới cho cuộc trò chuyện nhóm này.",
+                          "Enter the new name for this group chat.",
                         value: activeViewConversation.name,
-                        confirmText: "Lưu thay đổi",
+                        confirmText: "Save Changes",
                         onSubmit: (val) =>
                           handleUpdateGroup(val, activeViewConversation.avatar),
                       });
@@ -2450,11 +2506,11 @@ export default function ChatPage() {
                     className="cwb-panel-btn"
                     onClick={() => {
                       setPromptModal({
-                        title: "Đổi ảnh nhóm",
-                        description: "Nhập địa chỉ URL hình ảnh mới cho nhóm.",
+                        title: "Change Group Avatar",
+                        description: "Enter the new image URL for the group.",
                         value: activeViewConversation.avatar || "",
                         placeholder: "https://...",
-                        confirmText: "Cập nhật ảnh",
+                        confirmText: "Update Avatar",
                         onSubmit: (val) =>
                           handleUpdateGroup(activeViewConversation.name, val),
                       });
@@ -2486,7 +2542,7 @@ export default function ChatPage() {
           }
           onClose={() => setShowInviteModal(false)}
           onInviteSuccess={() => {
-            loadInitialData(); // To refresh members list
+            loadInitialData();
           }}
         />
       )}
@@ -2523,6 +2579,7 @@ export default function ChatPage() {
           status={activeCall.status}
           seconds={callSeconds}
           onClose={hangupCall}
+          peer={activeCall.peer}
         />
       )}
 

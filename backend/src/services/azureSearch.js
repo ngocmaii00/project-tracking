@@ -31,38 +31,43 @@ function init() {
 async function ensureIndex() {
   if (!indexClient) return;
   try {
-    await indexClient.createOrUpdateIndex({
+    const index = {
       name: INDEX_NAME,
       fields: [
         { name: 'id', type: 'Edm.String', key: true, filterable: true },
         { name: 'type', type: 'Edm.String', filterable: true, facetable: true },
-        { name: 'title', type: 'Edm.String', searchable: true, analyzerName: 'standard.lucene' },
-        { name: 'content', type: 'Edm.String', searchable: true, analyzerName: 'standard.lucene' },
+        { name: 'title', type: 'Edm.String', searchable: true, analyzerName: 'en.lucene' },
+        { name: 'content', type: 'Edm.String', searchable: true, analyzerName: 'en.lucene' },
         { name: 'projectId', type: 'Edm.String', filterable: true, facetable: true },
         { name: 'status', type: 'Edm.String', filterable: true, facetable: true },
         { name: 'priority', type: 'Edm.String', filterable: true, facetable: true },
         { name: 'ownerId', type: 'Edm.String', filterable: true },
-        { name: 'ownerName', type: 'Edm.String', searchable: true },
+        { name: 'ownerName', type: 'Edm.String', searchable: true, analyzerName: 'en.lucene' },
         { name: 'tags', type: 'Collection(Edm.String)', filterable: true, facetable: true },
         { name: 'createdAt', type: 'Edm.DateTimeOffset', filterable: true, sortable: true },
         { name: 'updatedAt', type: 'Edm.DateTimeOffset', filterable: true, sortable: true },
         { name: 'score', type: 'Edm.Double', filterable: true, sortable: true },
       ],
-      semanticSearch: {
+      semanticSettings: { // Try semanticSettings for v12.x compatibility
         configurations: [
           {
             name: 'semantic-config',
             prioritizedFields: {
               titleField: { fieldName: 'title' },
-              contentFields: [{ fieldName: 'content' }],
-            },
-          },
-        ],
-      },
-    });
-    console.log('✅ Azure AI Search index ready');
+              contentFields: [
+                { fieldName: 'content' }
+              ]
+            }
+          }
+        ]
+      }
+    };
+
+    console.log(`🚀 Updating search index: ${INDEX_NAME}`);
+    await indexClient.createOrUpdateIndex(index);
+    console.log('✅ Azure AI Search index synchronized.');
   } catch (err) {
-    console.error('Search index creation error:', err.message);
+    console.error('Search index sync error:', err.message);
   }
 }
 
@@ -142,28 +147,55 @@ async function search(query, options = {}) {
       filter: filters.length > 0 ? filters.join(' and ') : undefined,
       queryType: 'semantic',
       semanticSearchOptions: {
-        configurationName: 'semantic-config',
+        semanticConfigurationName: 'semantic-config', // Note: use semanticConfigurationName for some versions
         answers: { answerType: 'extractive', count: 3 },
         captions: { captionType: 'extractive' },
       },
+      searchFields: ['title', 'content', 'ownerName'],
       select: ['id', 'type', 'title', 'content', 'projectId', 'status', 'priority', 'ownerId', 'ownerName', 'tags', 'createdAt'],
-      orderBy: ['@search.score desc'],
     };
 
-    const response = await searchClient.search(query, searchOptions);
-    const results = [];
-    for await (const result of response.results) {
-      results.push({
-        ...result.document,
-        searchScore: result.score,
-        captions: result.captions,
-        highlights: result.highlights,
-      });
-    }
+    // Force remove any orderBy to avoid Azure conflicts
+    delete searchOptions.orderBy;
+    
+    console.log('🔍 Executing Azure Search with options:', JSON.stringify(searchOptions));
 
-    return { results, total: await response.count };
+
+    try {
+      const response = await searchClient.search(query, searchOptions);
+      const results = [];
+      for await (const result of response.results) {
+        results.push({
+          ...result.document,
+          searchScore: result.score,
+          captions: result.captions,
+          highlights: result.highlights,
+        });
+      }
+      return { results, total: await response.count };
+    } catch (semanticErr) {
+      console.warn('Semantic search failed, falling back to simple search:', semanticErr.message);
+      // Fallback: search without semantic options
+      const fallbackOptions = { 
+        ...searchOptions,
+        queryType: 'simple', 
+        searchFields: ['title', 'content', 'ownerName']
+      };
+      delete fallbackOptions.semanticSearchOptions;
+      delete fallbackOptions.orderBy;
+      
+      const response = await searchClient.search(query, fallbackOptions);
+      const results = [];
+      for await (const result of response.results) {
+        results.push({
+          ...result.document,
+          searchScore: result.score,
+        });
+      }
+      return { results, total: await response.count, message: 'Fallback to basic search' };
+    }
   } catch (err) {
-    console.error('Search error:', err.message);
+    console.error('Critical Search error:', err.message);
     return { results: [], total: 0, error: err.message };
   }
 }

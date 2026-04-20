@@ -18,7 +18,7 @@ async function createNotification({ user_id, type, title, message, data, priorit
 router.get('/', authenticate, async (req, res) => {
   try {
     const { project_id, status, owner_id, priority } = req.query;
-    let sqlString = `SELECT t.*, u.name as owner_name, p.name as project_name
+    let sqlString = `SELECT t.*, u.name as owner_name, u.avatar as owner_avatar, p.name as project_name
       FROM tasks t
       LEFT JOIN users u ON t.owner_id = u.id
       LEFT JOIN projects p ON t.project_id = p.id
@@ -80,7 +80,7 @@ router.post('/', authenticate, async (req, res) => {
       await createNotification({ user_id: owner_id, type: 'task_assigned', title: 'New Task Assigned', message: `You've been assigned: "${title}"`, data: { task_id: id }, priority: 'normal' });
     }
 
-    const task = await queryOne('SELECT t.*, u.name as owner_name FROM tasks t LEFT JOIN users u ON t.owner_id = u.id WHERE t.id = $1', [id]);
+    const task = await queryOne('SELECT t.*, u.name as owner_name, u.avatar as owner_avatar FROM tasks t LEFT JOIN users u ON t.owner_id = u.id WHERE t.id = $1', [id]);
     
     // Auto index Azure Search
     await indexDocument({ ...task, type: 'task' });
@@ -93,11 +93,11 @@ router.post('/', authenticate, async (req, res) => {
 
 router.get('/:id', authenticate, async (req, res) => {
   try {
-    const task = await queryOne('SELECT t.*, u.name as owner_name FROM tasks t LEFT JOIN users u ON t.owner_id = u.id WHERE t.id = $1', [req.params.id]);
+    const task = await queryOne('SELECT t.*, u.name as owner_name, u.avatar as owner_avatar FROM tasks t LEFT JOIN users u ON t.owner_id = u.id WHERE t.id = $1', [req.params.id]);
     if (!task) return res.status(404).json({ error: 'Task not found' });
     
     const changes = await query('SELECT tc.*, u.name as changed_by_name FROM task_changes tc LEFT JOIN users u ON tc.changed_by = u.id WHERE tc.task_id = $1 ORDER BY tc.created_at DESC LIMIT 20', [req.params.id]);
-    const comments = await query('SELECT c.*, u.name as author_name FROM comments c LEFT JOIN users u ON c.author_id = u.id WHERE c.task_id = $1 ORDER BY c.created_at ASC', [req.params.id]);
+    const comments = await query('SELECT c.*, u.name as author_name, u.avatar as author_avatar FROM comments c LEFT JOIN users u ON c.author_id = u.id WHERE c.task_id = $1 ORDER BY c.created_at ASC', [req.params.id]);
     
     res.json({ task, changes, comments });
   } catch (err) {
@@ -166,7 +166,7 @@ router.put('/:id', authenticate, async (req, res) => {
       }
     }
 
-    const updated = await queryOne('SELECT t.*, u.name as owner_name FROM tasks t LEFT JOIN users u ON t.owner_id = u.id WHERE t.id = $1', [req.params.id]);
+    const updated = await queryOne('SELECT t.*, u.name as owner_name, u.avatar as owner_avatar FROM tasks t LEFT JOIN users u ON t.owner_id = u.id WHERE t.id = $1', [req.params.id]);
     res.json({ task: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -204,7 +204,7 @@ router.post('/:id/comments', authenticate, async (req, res) => {
     await query('INSERT INTO comments (id, task_id, project_id, author_id, content, mentions) VALUES ($1, $2, $3, $4, $5, $6)',
       [id, req.params.id, task.project_id, req.user.id, content, JSON.stringify(mentions || [])]);
     
-    const comment = await queryOne('SELECT c.*, u.name as author_name FROM comments c LEFT JOIN users u ON c.author_id = u.id WHERE c.id = $1', [id]);
+    const comment = await queryOne('SELECT c.*, u.name as author_name, u.avatar as author_avatar FROM comments c LEFT JOIN users u ON c.author_id = u.id WHERE c.id = $1', [id]);
     res.status(201).json({ comment });
   } catch (err) {
     res.status(500).json({ error: err.message });

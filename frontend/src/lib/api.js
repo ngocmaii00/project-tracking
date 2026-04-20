@@ -25,4 +25,11 @@ api.interceptors.response.use(
   }
 );
 
+export const getAvatar = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  const baseUrl = API_URL.replace('/api', '');
+  return `${baseUrl}${url}`;
+};
+
 export default api;

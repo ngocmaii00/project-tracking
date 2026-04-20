@@ -190,7 +190,8 @@ router.post('/conversations/:id/leave', authenticate, async (req, res) => {
     const { id } = req.params;
     await query('DELETE FROM conversation_members WHERE conversation_id = $1 AND user_id = $2', [id, req.user.id]);
     
-    // Optional: If no members left, delete conversation. Or if admin left, assign new admin.
+    // Optional: If no members left, delete conversation. Or if admin left, assign new admin randomly.
+    
     // For now, simple leave.
     res.json({ success: true });
   } catch (err) {
