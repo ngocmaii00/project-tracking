@@ -98,7 +98,10 @@ router.post('/:id/invite', authenticate, async (req, res) => {
     }
 
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    console.error('[POST /meetings/:id/invite] Error:', err.message, err.stack);
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 router.post('/invitations/:id/accept', authenticate, async (req, res) => {
@@ -187,20 +190,24 @@ router.post('/:id/process', authenticate, async (req, res) => {
     const meeting = await queryOne('SELECT * FROM meetings WHERE id = $1', [req.params.id]);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
 
-    // Step 1: Simulate Speaker Diarization if requested
+    // Step 1: Speaker Diarization (optional, only if blob URL exists and is a local path)
     let processedTranscript = transcript;
-    if (use_voice_ai) {
-      // Note: Diarization usually requires an audio file. 
-      // Falling back to text-only if no audio is provided.
+    if (use_voice_ai && meeting.transcript_blob_url) {
       try {
-        if (meeting.transcript_blob_url) {
+        // Only attempt if it's a local file (since transcribeWithDiarization uses fs.readFileSync)
+        if (!meeting.transcript_blob_url.startsWith('http')) {
           const diarized = await transcribeWithDiarization(meeting.transcript_blob_url);
           processedTranscript = diarized.map(d => `[${d.speaker}]: ${d.text}`).join('\n');
+        } else {
+          console.warn('[Meeting Process] Diarization skipped: Remote URL not supported by local fs.readFileSync');
         }
       } catch (e) {
-        console.error("Diarization failed, falling back to basic transcript:", e.message);
+        console.warn('[Meeting Process] Diarization failed:', e.message);
       }
     }
+
+
+    const finalTranscript = processedTranscript || meeting.transcript || '';
 
     const projectContext = meeting.project_id
       ? { 
@@ -209,48 +216,81 @@ router.post('/:id/process', authenticate, async (req, res) => {
         }
       : {};
 
-    // Step 2: Advanced Meeting Intelligence (Summary, Decisions, Next Steps, Next Meeting)
-    const intel = await meetingIntelligenceAgent(processedTranscript || meeting.transcript || '', projectContext);
-    
-    // Step 3: Extract Tasks for Human-in-the-loop approval
-    const extraction = await extractionAgent(processedTranscript || meeting.transcript || '', 'meeting', projectContext);
+    // Step 2: Meeting Intelligence — with fallback
+    let intel = null;
+    try {
+      intel = await meetingIntelligenceAgent(finalTranscript, projectContext);
+    } catch (e) {
+      console.error('[Meeting Process] meetingIntelligenceAgent error:', e.message);
+    }
+    // If AI failed or returned null, generate rule-based summary
+    if (!intel) {
+      const lines = finalTranscript.split('\n').filter(l => l.trim());
+      const actionItems = lines.filter(l => /action:|will|should|need to|assigned|complete|fix|review/i.test(l)).slice(0, 8).map(l => l.trim());
+      const decisions = lines.filter(l => /decided|agreed|confirmed|approved/i.test(l)).slice(0, 5).map(l => l.trim());
+      intel = {
+        summary: lines.slice(0, 3).join(' ') || `Meeting "${meeting.title}" was processed.`,
+        key_takeaways: actionItems.slice(0, 3),
+        decisions,
+        action_items: actionItems,
+        next_steps_plan: actionItems.slice(0, 3).map((a, i) => ({ task: a, owner: 'TBD', due_date: null, priority: i === 0 ? 'high' : 'medium' })),
+        next_meeting: { proposed_at: null, proposed_topic: 'Follow-up', agenda: [] },
+        sentiment: 'neutral',
+        participation_score: 0.7
+      };
+    }
 
+    // Step 3: Task Extraction — with fallback
+    let extraction = { extracted_tasks: [], overall_confidence: 0.5 };
+    try {
+      extraction = await extractionAgent(finalTranscript, 'meeting', projectContext);
+    } catch (e) {
+      console.warn('[Meeting Process] extractionAgent error:', e.message);
+    }
+
+    // Step 4: Update meeting in DB
     await query(`
       UPDATE meetings 
-      SET transcript = $1, 
-          summary = $2, 
-          action_items = $3, 
-          decisions = $4, 
-          next_steps_plan = $5,
-          next_meeting_proposal = $6,
-          quality_score = $7, 
-          status = $8 
+      SET transcript = $1, summary = $2, action_items = $3, decisions = $4, 
+          next_steps_plan = $5, next_meeting_proposal = $6, quality_score = $7, status = $8 
       WHERE id = $9
     `, [
-      processedTranscript || meeting.transcript, 
-      intel.summary, 
-      JSON.stringify(intel.action_items || []), 
-      JSON.stringify(intel.decisions || []), 
+      finalTranscript,
+      intel.summary,
+      JSON.stringify(intel.action_items || []),
+      JSON.stringify(intel.decisions || []),
       JSON.stringify(intel.next_steps_plan || []),
       JSON.stringify(intel.next_meeting || {}),
-      intel.participation_score || 0.8, 
-      'completed', 
+      intel.participation_score || 0.7,
+      'completed',
       meeting.id
     ]);
 
+    // Step 5: Create AI draft (if linked to project)
     if (meeting.project_id) {
       const draftId = uuidv4();
       await query('INSERT INTO ai_drafts (id, project_id, source_type, source_content, extracted_tasks, confidence_score, ai_summary, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-        [draftId, meeting.project_id, 'meeting', processedTranscript || '', JSON.stringify(extraction.extracted_tasks), extraction.overall_confidence, intel.summary, req.user.id]);
+        [draftId, meeting.project_id, 'meeting', finalTranscript, JSON.stringify(extraction.extracted_tasks || []), extraction.overall_confidence || 0.5, intel.summary, req.user.id]);
       intel.draft_id = draftId;
     }
 
-    const updatedMeeting = await queryOne('SELECT * FROM meetings WHERE id = $1', [req.params.id]);
-    await indexDocument({ ...updatedMeeting, type: 'meeting' });
+    // Index to Azure Search (non-blocking)
+    try {
+      const latestMeeting = await queryOne('SELECT * FROM meetings WHERE id = $1', [req.params.id]);
+      if (latestMeeting) {
+        indexDocument({ ...latestMeeting, type: 'meeting' }).catch(e => console.error('[Search Index] Background task failed:', e.message));
+      }
+    } catch (e) { /* ignore search indexing errors */ }
 
+
+    const updatedMeeting = await queryOne('SELECT * FROM meetings WHERE id = $1', [req.params.id]);
     res.json({ result: intel, meeting: updatedMeeting });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('[Meeting Process] Fatal error:', err.message, err.stack);
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 router.put('/:id', authenticate, async (req, res) => {
   try {

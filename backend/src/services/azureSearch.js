@@ -31,6 +31,15 @@ function init() {
 async function ensureIndex() {
   if (!indexClient) return;
   try {
+    // Check if index already exists — skip update to avoid "field cannot be changed" errors
+    try {
+      await indexClient.getIndex(INDEX_NAME);
+      console.log(`✅ Azure AI Search index "${INDEX_NAME}" already exists — skipping update.`);
+      return;
+    } catch (notFound) {
+      // Index doesn't exist yet — create it
+    }
+
     const index = {
       name: INDEX_NAME,
       fields: [
@@ -48,28 +57,16 @@ async function ensureIndex() {
         { name: 'updatedAt', type: 'Edm.DateTimeOffset', filterable: true, sortable: true },
         { name: 'score', type: 'Edm.Double', filterable: true, sortable: true },
       ],
-      semanticSettings: { // Try semanticSettings for v12.x compatibility
-        configurations: [
-          {
-            name: 'semantic-config',
-            prioritizedFields: {
-              titleField: { fieldName: 'title' },
-              contentFields: [
-                { fieldName: 'content' }
-              ]
-            }
-          }
-        ]
-      }
     };
 
-    console.log(`🚀 Updating search index: ${INDEX_NAME}`);
-    await indexClient.createOrUpdateIndex(index);
-    console.log('✅ Azure AI Search index synchronized.');
+    console.log(`🚀 Creating search index: ${INDEX_NAME}`);
+    await indexClient.createIndex(index);
+    console.log('✅ Azure AI Search index created.');
   } catch (err) {
     console.error('Search index sync error:', err.message);
   }
 }
+
 
 /**
  * Index một document (task, meeting, memory, ...)
@@ -77,6 +74,9 @@ async function ensureIndex() {
 async function indexDocument(doc) {
   if (!searchClient) return;
   try {
+    const createdAt = doc.createdAt && !isNaN(new Date(doc.createdAt).getTime()) ? new Date(doc.createdAt) : new Date();
+    const updatedAt = doc.updatedAt && !isNaN(new Date(doc.updatedAt).getTime()) ? new Date(doc.updatedAt) : new Date();
+
     await searchClient.uploadDocuments([{
       id: doc.id,
       type: doc.type,
@@ -88,14 +88,15 @@ async function indexDocument(doc) {
       ownerId: doc.ownerId || doc.owner_id || '',
       ownerName: doc.ownerName || '',
       tags: Array.isArray(doc.tags) ? doc.tags : [],
-      createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
-      updatedAt: doc.updatedAt ? new Date(doc.updatedAt) : new Date(),
+      createdAt,
+      updatedAt,
       score: doc.score || 0,
     }]);
   } catch (err) {
     console.error('Search indexDocument error:', err.message);
   }
 }
+
 
 /**
  * Index nhiều documents cùng lúc (batch)
@@ -145,60 +146,29 @@ async function search(query, options = {}) {
       top,
       includeTotalCount: true,
       filter: filters.length > 0 ? filters.join(' and ') : undefined,
-      queryType: 'semantic',
-      semanticSearchOptions: {
-        semanticConfigurationName: 'semantic-config', // Note: use semanticConfigurationName for some versions
-        answers: { answerType: 'extractive', count: 3 },
-        captions: { captionType: 'extractive' },
-      },
+      queryType: 'simple',
       searchFields: ['title', 'content', 'ownerName'],
       select: ['id', 'type', 'title', 'content', 'projectId', 'status', 'priority', 'ownerId', 'ownerName', 'tags', 'createdAt'],
     };
 
-    // Force remove any orderBy to avoid Azure conflicts
-    delete searchOptions.orderBy;
-    
-    console.log('🔍 Executing Azure Search with options:', JSON.stringify(searchOptions));
+    console.log('🔍 Executing Azure Search (simple mode):', query);
 
-
-    try {
-      const response = await searchClient.search(query, searchOptions);
-      const results = [];
-      for await (const result of response.results) {
-        results.push({
-          ...result.document,
-          searchScore: result.score,
-          captions: result.captions,
-          highlights: result.highlights,
-        });
-      }
-      return { results, total: await response.count };
-    } catch (semanticErr) {
-      console.warn('Semantic search failed, falling back to simple search:', semanticErr.message);
-      // Fallback: search without semantic options
-      const fallbackOptions = { 
-        ...searchOptions,
-        queryType: 'simple', 
-        searchFields: ['title', 'content', 'ownerName']
-      };
-      delete fallbackOptions.semanticSearchOptions;
-      delete fallbackOptions.orderBy;
-      
-      const response = await searchClient.search(query, fallbackOptions);
-      const results = [];
-      for await (const result of response.results) {
-        results.push({
-          ...result.document,
-          searchScore: result.score,
-        });
-      }
-      return { results, total: await response.count, message: 'Fallback to basic search' };
+    const response = await searchClient.search(query, searchOptions);
+    const results = [];
+    for await (const result of response.results) {
+      results.push({
+        ...result.document,
+        searchScore: result.score,
+      });
     }
+    return { results, total: response.count || results.length };
   } catch (err) {
-    console.error('Critical Search error:', err.message);
+    console.error('Azure Search error:', err.message);
     return { results: [], total: 0, error: err.message };
   }
 }
+
+
 
 /**
  * Xoá document khỏi index khi bị xoá trong DB

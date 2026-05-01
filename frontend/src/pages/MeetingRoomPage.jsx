@@ -1013,7 +1013,7 @@ export default function MeetingRoomPage() {
         creds.key,
         creds.region,
       );
-      config.speechRecognitionLanguage = "vi-VN";
+      config.speechRecognitionLanguage = "en-US";
       const recognizer = new SpeechSDK.SpeechRecognizer(
         config,
         SpeechSDK.AudioConfig.fromDefaultMicrophoneInput(),

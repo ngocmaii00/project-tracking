@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import {
   BarChart2,
   GitBranch,
@@ -378,6 +378,10 @@ function TaskModal({ task, project, users, currentUser, onClose, onSaved }) {
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const taskIdParam = queryParams.get("taskId");
+
   const {
     loadProject,
     loadAnalytics,
@@ -424,6 +428,18 @@ export default function ProjectDetailPage() {
   const project = currentProject?.project;
   const tasks = currentProject?.tasks || [];
   const members = currentProject?.members || [];
+
+  useEffect(() => {
+    if (taskIdParam && tasks.length > 0 && !taskModal) {
+      const task = tasks.find(t => t.id === taskIdParam);
+      if (task) {
+        setTaskModal(task);
+        // Clear the URL param without refreshing
+        const newUrl = window.location.pathname;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+      }
+    }
+  }, [taskIdParam, tasks]);
 
   const handleRiskAnalysis = async () => {
     await runRiskAnalysis(id);

@@ -126,15 +126,56 @@ router.get('/:id/analytics', authenticate, async (req, res) => {
     const elapsed = (today - startDate) / 86400000;
     const timeProgress = totalDays > 0 ? Math.min(1, elapsed / totalDays) : 0;
 
+    // Critical path is deterministic — always works
     const cpResult = criticalPathAgent(tasks);
 
-    const [riskAnalysis, prediction] = await Promise.all([
-      riskAnalysisAgent(tasks, project, users),
-      timelinePredictionAgent(project, tasks, [])
-    ]);
+    // AI calls with individual fallbacks — never crash analytics
+    let riskAnalysis = null;
+    let prediction = null;
+    try {
+      riskAnalysis = await riskAnalysisAgent(tasks, project, users);
+    } catch (e) {
+      console.error('[Analytics] riskAnalysisAgent failed:', e.message);
+    }
+    try {
+      prediction = await timelinePredictionAgent(project, tasks, []);
+    } catch (e) {
+      console.error('[Analytics] timelinePredictionAgent failed:', e.message);
+    }
 
-    await query('UPDATE projects SET risk_score = $1, health_score = $2 WHERE id = $3',
-      [riskAnalysis.project_risk_score, riskAnalysis.health_score, project.id]);
+    // Simple rule-based fallbacks
+    if (!riskAnalysis) {
+      const overdueCount = overdue.length;
+      const blockedCount = tasks.filter(t => t.status === 'blocked').length;
+      const score = Math.min(100, overdueCount * 20 + blockedCount * 15);
+      riskAnalysis = {
+        project_risk_score: score,
+        health_score: Math.max(0, 100 - score),
+        risks: [],
+        overloaded_resources: [],
+        critical_warnings: overdueCount > 0 ? [`${overdueCount} tasks overdue`] : [],
+        overall_reasoning: 'Rule-based fallback'
+      };
+    }
+    if (!prediction) {
+      const remaining = tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
+      const predictedEnd = new Date();
+      predictedEnd.setDate(predictedEnd.getDate() + remaining * 3);
+      prediction = {
+        predicted_end_date: predictedEnd.toISOString().split('T')[0],
+        confidence: 0.6,
+        delay_probability: 0.4,
+        predicted_delay_days: 0,
+        velocity_analysis: { planned_tasks_per_week: 5, actual_tasks_per_week: 3, trend: 'stable' },
+        completion_scenarios: [],
+        key_risk_factors: [],
+        recommendation: 'Rule-based estimate'
+      };
+    }
+
+    // Update project scores (non-blocking)
+    query('UPDATE projects SET risk_score = $1, health_score = $2 WHERE id = $3',
+      [riskAnalysis.project_risk_score, riskAnalysis.health_score, project.id]).catch(e => console.error('[Analytics] score update failed:', e.message));
 
     const ganttData = tasks.filter(t => t.due_date || t.start_date).map(t => ({
       id: t.id,
@@ -169,9 +210,11 @@ router.get('/:id/analytics', authenticate, async (req, res) => {
       velocity: Math.round(tasks.filter(t => t.status === 'done').length / Math.max(1, Math.ceil(elapsed / 7)))
     });
   } catch (err) {
+    console.error('[Analytics] Fatal error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 router.get('/:id/changes', authenticate, async (req, res) => {
   try {

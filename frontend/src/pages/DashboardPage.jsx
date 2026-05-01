@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState, useRef, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   BarChart2,
   AlertTriangle,
@@ -144,10 +144,21 @@ function PowerBIPanel({ pageName, height = 450 }) {
 
 // ─── Azure AI Search Bar ──────────────────────────────────────────────────────
 function GlobalSearchBar() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef(null);
+
+  const goToResult = (r) => {
+    setQuery("");
+    setResults([]);
+    if (r.type === 'task') {
+      navigate(`/projects/${r.projectId}?taskId=${r.id}`);
+    } else if (r.type === 'meeting') {
+      navigate(`/meetings`); // Or `/meetings/${r.id}` if a detail page exists
+    }
+  };
 
   const handleSearch = (q) => {
     setQuery(q);
@@ -241,6 +252,7 @@ function GlobalSearchBar() {
                 cursor: "pointer",
                 transition: "background 0.15s",
               }}
+              onClick={() => goToResult(r)}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background = "var(--bg-elevated)")
               }
