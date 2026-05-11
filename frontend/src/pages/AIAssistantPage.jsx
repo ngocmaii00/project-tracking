@@ -460,63 +460,76 @@ export default function AIAssistantPage() {
             >
               Recent Activity
             </div>
-            {aiConversations?.map((c) => (
+            {aiConversations?.length === 0 ? (
               <div
-                key={c.id}
-                onClick={() => setActiveAiChat(c.id)}
                 style={{
-                  padding: "12px 16px",
-                  borderRadius: 14,
-                  cursor: "pointer",
-                  background:
-                    activeAiConversationId === c.id
-                      ? "var(--bg-elevated)"
-                      : "transparent",
-                  marginBottom: 8,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  transition: "all 0.2s",
-                  border:
-                    activeAiConversationId === c.id
-                      ? "1px solid var(--border-active)"
-                      : "1px solid transparent",
+                  padding: "20px 8px",
+                  textAlign: "center",
+                  fontSize: 13,
+                  color: "var(--text-muted)",
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: activeAiConversationId === c.id ? 600 : 500,
-                    color:
-                      activeAiConversationId === c.id
-                        ? "var(--text-primary)"
-                        : "var(--text-secondary)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    flex: 1,
-                  }}
-                >
-                  {c.title}
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteAiChat(c.id);
-                  }}
-                  className="delete-chat-btn"
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "var(--text-muted)",
-                    cursor: "pointer",
-                    opacity: 0.6,
-                  }}
-                >
-                  <X size={14} />
-                </button>
+                Chưa có hoạt động gần đây. Hãy tạo Intelligence mới để bắt đầu.
               </div>
-            ))}
+            ) : (
+              aiConversations?.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => setActiveAiChat(c.id)}
+                  style={{
+                    padding: "12px 16px",
+                    borderRadius: 14,
+                    cursor: "pointer",
+                    background:
+                      activeAiConversationId === c.id
+                        ? "var(--bg-elevated)"
+                        : "transparent",
+                    marginBottom: 8,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    transition: "all 0.2s",
+                    border:
+                      activeAiConversationId === c.id
+                        ? "1px solid var(--border-active)"
+                        : "1px solid transparent",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: activeAiConversationId === c.id ? 600 : 500,
+                      color:
+                        activeAiConversationId === c.id
+                          ? "var(--text-primary)"
+                          : "var(--text-secondary)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      flex: 1,
+                    }}
+                  >
+                    {c.title}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteAiChat(c.id);
+                    }}
+                    className="delete-chat-btn"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                      opacity: 0.6,
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -804,6 +817,110 @@ export default function AIAssistantPage() {
             flexDirection: "column",
           }}
         >
+          {messages.length === 0 && (
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "40px 20px",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 24,
+                  background:
+                    "linear-gradient(135deg, var(--primary), var(--accent))",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 40,
+                  marginBottom: 24,
+                  boxShadow: "var(--shadow-glow)",
+                  animation: "float 6s ease-in-out infinite",
+                }}
+              >
+                🤖
+              </div>
+              <h2
+                style={{
+                  fontSize: 28,
+                  fontWeight: 800,
+                  marginBottom: 12,
+                  background: "linear-gradient(to right, #fff, var(--accent))",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                Bắt đầu một trí tuệ mới
+              </h2>
+              <p
+                style={{
+                  color: "var(--text-muted)",
+                  maxWidth: 500,
+                  lineHeight: 1.6,
+                  fontSize: 16,
+                  marginBottom: 32,
+                }}
+              >
+                Tôi có thể giúp bạn phân tích rủi ro, dự đoán tiến độ, tối ưu hóa
+                nguồn lực hoặc đơn giản là trả lời các câu hỏi về dự án.
+              </p>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: 16,
+                  width: "100%",
+                  maxWidth: 800,
+                }}
+              >
+                {[
+                  "Phân tích rủi ro dự án này?",
+                  "Dự báo ngày hoàn thành?",
+                  "Ai đang bị quá tải công việc?",
+                  "Tóm tắt các quyết định gần đây?",
+                ].map((prompt, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setInput(prompt)}
+                    style={{
+                      padding: "16px 20px",
+                      background: "var(--bg-card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 16,
+                      color: "var(--text-secondary)",
+                      fontSize: 14,
+                      textAlign: "left",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--primary)";
+                      e.currentTarget.style.background = "var(--bg-elevated)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--border)";
+                      e.currentTarget.style.background = "var(--bg-card)";
+                    }}
+                  >
+                    <Zap size={14} style={{ color: "var(--warning)" }} />
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {messages.map((msg, i) => (
             <div
               key={i}

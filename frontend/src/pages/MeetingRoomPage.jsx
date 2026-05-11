@@ -35,6 +35,8 @@ import {
   Paperclip,
   Phone,
   PhoneOff,
+  Globe,
+  Shield,
 } from "lucide-react";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import useStore from "../store/useStore";
@@ -556,12 +558,34 @@ function AIDeadlineTab({ userId }) {
   );
 }
 
-function TranscriptTab({ transcript }) {
+function TranscriptTab({ transcript, onTranslate }) {
   const scrollRef = useRef(null);
+  const [translatingIdx, setTranslatingIdx] = useState(null);
+  const [showLangMenu, setShowLangMenu] = useState(null);
+
   useEffect(() => {
     if (scrollRef.current)
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [transcript]);
+
+  const TRANSLATE_LANGS = [
+    { code: "vi", name: "Tiếng Việt" },
+    { code: "en", name: "English" },
+    { code: "ja", name: "Japanese" },
+    { code: "ko", name: "Korean" },
+    { code: "zh", name: "Chinese" },
+    { code: "fr", name: "French" },
+  ];
+
+  const handleTranslate = async (idx, langCode) => {
+    setTranslatingIdx(idx);
+    setShowLangMenu(null);
+    try {
+      await onTranslate(idx, langCode);
+    } finally {
+      setTranslatingIdx(null);
+    }
+  };
 
   return (
     <div className="meet-transcript" ref={scrollRef}>
@@ -631,9 +655,59 @@ function TranscriptTab({ transcript }) {
                 color: "#94a3b8",
                 lineHeight: 1.6,
                 paddingLeft: 24,
+                position: "relative",
               }}
+              className="transcript-text-wrap"
             >
-              {t.text}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                <div style={{ flex: 1 }}>{t.text}</div>
+                <div style={{ position: "relative" }}>
+                  <button
+                    className="meet-icon-btn sm"
+                    onClick={() => setShowLangMenu(showLangMenu === i ? null : i)}
+                    style={{ opacity: 0.6 }}
+                  >
+                    <Zap size={10} />
+                  </button>
+                  {showLangMenu === i && (
+                    <div className="meet-lang-menu">
+                      {TRANSLATE_LANGS.map((l) => (
+                        <button
+                          key={l.code}
+                          onClick={() => handleTranslate(i, l.code)}
+                        >
+                          {l.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {t.translation && (
+                <div
+                  style={{
+                    marginTop: 4,
+                    padding: "6px 10px",
+                    background: "rgba(99,102,241,0.1)",
+                    borderRadius: 6,
+                    borderLeft: "2px solid #6366f1",
+                    fontSize: 11,
+                    color: "#e2e8f0",
+                  }}
+                >
+                  <div style={{ fontSize: 9, color: "#818cf8", marginBottom: 2, fontWeight: 700 }}>DỊCH:</div>
+                  {t.translation}
+                </div>
+              )}
+
+              {translatingIdx === i && (
+                <div className="ai-thinking" style={{ transform: "scale(0.5)", marginTop: 4 }}>
+                  <div className="ai-dot" />
+                  <div className="ai-dot" />
+                  <div className="ai-dot" />
+                </div>
+              )}
             </div>
           </div>
         ))
@@ -668,6 +742,8 @@ export default function MeetingRoomPage() {
   const [toolbarPos, setToolbarPos] = useState({ x: -1000, y: -1000 });
   const [isMinimized, setIsMinimized] = useState(false);
   const [meetingDuration, setMeetingDuration] = useState(0);
+  const [recognitionLang, setRecognitionLang] = useState("vi-VN");
+  const [showLangPicker, setShowLangPicker] = useState(false);
 
   const toolbarRef = useRef(null);
   const isDragging = useRef(false);
@@ -1013,13 +1089,13 @@ export default function MeetingRoomPage() {
         creds.key,
         creds.region,
       );
-      config.speechRecognitionLanguage = "en-US";
+      config.speechRecognitionLanguage = recognitionLang;
       const recognizer = new SpeechSDK.SpeechRecognizer(
         config,
         SpeechSDK.AudioConfig.fromDefaultMicrophoneInput(),
       );
       recognizer.recognized = (s, e) => {
-        if (isMutedRef.current || !audioStreamRef.current) return; 
+        if (isMutedRef.current || !audioStreamRef.current) return;
         if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
           const newSegment = {
             user: user.name,
@@ -1037,7 +1113,7 @@ export default function MeetingRoomPage() {
             JSON.stringify({
               type: "meeting_event",
               event: "transcript",
-              userId: user.id, // Thêm ID để lọc duplicate chính xác
+              userId: user.id,
               userName: user.name,
               avatar: user.avatar,
               text: e.result.text,
@@ -1050,6 +1126,26 @@ export default function MeetingRoomPage() {
       recognizerRef.current = recognizer;
     } catch (err) {
       console.error("Azure Speech Error:", err);
+    }
+  };
+
+  const handleTranslateSegment = async (idx, langCode) => {
+    const segment = transcript[idx];
+    if (!segment) return;
+
+    try {
+      // Use AI Assistant's chat function to translate (it's already set up to handle prompts)
+      const { data } = await api.post("/ai/chat", {
+        message: `Translate the following text to ${langCode}: "${segment.text}". Only return the translated text.`,
+      });
+
+      setTranscript((prev) => {
+        const next = [...prev];
+        next[idx] = { ...next[idx], translation: data.reply };
+        return next;
+      });
+    } catch (err) {
+      toast.error("Lỗi khi dịch: " + err.message);
     }
   };
 
@@ -1352,6 +1448,43 @@ export default function MeetingRoomPage() {
                   <span>{isMuted ? "Mic off" : "Mic"}</span>
                 </button>
                 <button
+                  className="meet-tb-btn"
+                  onClick={() => setShowLangPicker(!showLangPicker)}
+                  title="Ngôn ngữ nhận diện"
+                >
+                  <Globe size={17} />
+                  <span>{recognitionLang.split("-")[0].toUpperCase()}</span>
+                </button>
+                {showLangPicker && (
+                  <div 
+                    className="meet-layout-menu" 
+                    style={{ bottom: "110%", top: "auto", minWidth: 100 }}
+                  >
+                    {[
+                      { code: "vi-VN", label: "Tiếng Việt" },
+                      { code: "en-US", label: "English" },
+                      { code: "ja-JP", label: "Japanese" },
+                      { code: "ko-KR", label: "Korean" },
+                      { code: "zh-CN", label: "Chinese" },
+                      { code: "fr-FR", label: "French" },
+                    ].map((l) => (
+                      <button
+                        key={l.code}
+                        className={`meet-layout-btn ${recognitionLang === l.code ? "active" : ""}`}
+                        onClick={() => {
+                          setRecognitionLang(l.code);
+                          setShowLangPicker(false);
+                          if (isRecording) {
+                            startTranscription(); // Restart with new lang
+                          }
+                        }}
+                      >
+                        <span>{l.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button
                   className={`meet-tb-btn ${isVideoOff ? "danger" : ""}`}
                   onClick={toggleVideo}
                   title={isVideoOff ? "Bật camera" : "Tắt camera"}
@@ -1469,7 +1602,10 @@ export default function MeetingRoomPage() {
           {activeTab === "ai" && <AIDeadlineTab userId={user.id} />}
 
           {activeTab === "transcript" && (
-            <TranscriptTab transcript={transcript} />
+            <TranscriptTab 
+              transcript={transcript} 
+              onTranslate={handleTranslateSegment}
+            />
           )}
 
           {activeTab === "notes" && (
@@ -2014,6 +2150,21 @@ export default function MeetingRoomPage() {
         .meet-chat-messages::-webkit-scrollbar-thumb,
         .meet-transcript::-webkit-scrollbar-thumb,
         .meet-ai-tab::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+        .meet-lang-menu {
+          position: absolute; right: 0; top: 100%; margin-top: 5px;
+          background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 8px; z-index: 50; width: 120px;
+          box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+          overflow: hidden;
+        }
+        .meet-lang-menu button {
+          width: 100%; padding: 8px 12px; text-align: left;
+          background: transparent; border: none; color: #94a3b8;
+          font-size: 11px; cursor: pointer; transition: 0.2s;
+        }
+        .meet-lang-menu button:hover {
+          background: rgba(255,255,255,0.05); color: white;
+        }
       `}</style>
     </div>
   );

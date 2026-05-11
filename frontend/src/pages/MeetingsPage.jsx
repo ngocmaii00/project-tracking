@@ -24,6 +24,7 @@ import {
 import useStore from "../store/useStore";
 import { format, parseISO } from "date-fns";
 import api, { getAvatar } from "../lib/api";
+import toast from "react-hot-toast";
 
 function CreateMeetingModal({ projects, onClose, onCreated }) {
   const [form, setForm] = useState({
@@ -530,6 +531,7 @@ export default function MeetingsPage() {
     acceptMeetingInvite,
     user,
     deleteMeeting,
+    createMeeting,
   } = useStore();
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -684,11 +686,50 @@ export default function MeetingsPage() {
 
               const p = projects.find((pr) => pr.id === m.project_id);
 
+              const attendeeIds = Array.isArray(m.attendees)
+                ? m.attendees
+                : typeof m.attendees === "string"
+                  ? JSON.parse(m.attendees || "[]")
+                  : [];
+
+              const isAssigned =
+                m.created_by === user.id || attendeeIds.includes(user.id);
+
+              const handleAcceptProposal = async () => {
+                if (!nextMeet.proposed_at) {
+                  toast.error("Không có thông tin thời gian đề xuất");
+                  return;
+                }
+                try {
+                  setLoading(true);
+                  await createMeeting({
+                    title: `Follow-up: ${m.title}`,
+                    project_id: m.project_id,
+                    scheduled_at: nextMeet.proposed_at,
+                    attendees: attendeeIds,
+                    meeting_type: "follow_up",
+                  });
+                  toast.success("Đã lên lịch họp tiếp theo!");
+                  refreshAll();
+                } catch (err) {
+                  toast.error("Lỗi khi tạo lịch họp: " + err.message);
+                } finally {
+                  setLoading(false);
+                }
+              };
+
               return (
                 <div
                   key={m.id}
                   className="card"
-                  style={{ display: "flex", flexDirection: "column", gap: 16 }}
+                  style={{
+                    height: "fit-content",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 16,
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
                 >
                   <div
                     style={{
@@ -765,7 +806,35 @@ export default function MeetingsPage() {
                     </div>
                   </div>
 
-                  {m.status === "completed" ? (
+                  {!isAssigned ? (
+                    <div
+                      style={{
+                        padding: "40px 20px",
+                        textAlign: "center",
+                        background: "rgba(255,255,255,0.02)",
+                        borderRadius: 16,
+                        border: "1px dashed var(--border)",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <Shield size={32} style={{ opacity: 0.2 }} />
+                      <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
+                        Bạn không được gán vào cuộc họp này.
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 18,
+                          fontWeight: 700,
+                          color: "var(--text-primary)",
+                        }}
+                      >
+                        Chưa có lịch sử
+                      </div>
+                    </div>
+                  ) : m.status === "completed" ? (
                     <div
                       style={{
                         display: "flex",
@@ -972,6 +1041,7 @@ export default function MeetingsPage() {
                             background: "var(--bg-elevated)",
                             borderRadius: 8,
                             fontSize: 13,
+                            border: "1px solid var(--warning-dark)",
                           }}
                         >
                           <Clock
@@ -980,7 +1050,7 @@ export default function MeetingsPage() {
                           />
                           <div style={{ flex: 1 }}>
                             <span style={{ color: "var(--text-muted)" }}>
-                              AI suggests follow-up:
+                              AI gợi ý buổi họp tiếp theo:
                             </span>
                             <div
                               style={{
@@ -994,8 +1064,12 @@ export default function MeetingsPage() {
                               )}
                             </div>
                           </div>
-                          <button className="btn btn-ghost btn-sm btn-icon">
-                            <ArrowRight size={14} />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: "4px 12px" }}
+                            onClick={handleAcceptProposal}
+                          >
+                            Accept
                           </button>
                         </div>
                       )}
