@@ -321,4 +321,22 @@ router.delete('/:id', authenticate, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.post('/:id/accept-proposal', authenticate, async (req, res) => {
+  try {
+    const { newMeetingId } = req.body;
+    const meeting = await queryOne('SELECT * FROM meetings WHERE id = $1', [req.params.id]);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    
+    const proposal = typeof meeting.next_meeting_proposal === 'string' 
+      ? JSON.parse(meeting.next_meeting_proposal || '{}') 
+      : meeting.next_meeting_proposal || {};
+    
+    proposal.accepted = true;
+    proposal.new_meeting_id = newMeetingId;
+    
+    await query('UPDATE meetings SET next_meeting_proposal = $1 WHERE id = $2', [JSON.stringify(proposal), req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

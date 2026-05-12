@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import useStore from "../store/useStore";
 import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 import { PowerBIEmbed } from "powerbi-client-react";
 import { models } from "powerbi-client";
 import api from "../lib/api";
@@ -106,7 +107,7 @@ function TaskRow({ task, users, currentUser, onEdit, onDelete }) {
             {new Date(task.due_date) < new Date() && task.status !== "done"
               ? "⚠ "
               : ""}
-            {format(new Date(task.due_date), "MMM d")}
+            {format(new Date(task.due_date), "dd/MM/yyyy", { locale: vi })}
           </span>
         ) : (
           <span style={{ color: "var(--text-muted)" }}>—</span>

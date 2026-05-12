@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { Clock, ExternalLink, GitCommit, GitPullRequest } from "lucide-react";
 import useStore from "../store/useStore";
 import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 import api, { getAvatar } from "../lib/api";
 
 export default function AuditTrailPage() {
@@ -288,7 +289,7 @@ export default function AuditTrailPage() {
                           <div
                             style={{ fontSize: 11, color: "var(--text-muted)" }}
                           >
-                            {format(new Date(log.created_at), "MMM d, h:mm a")}
+                            {format(new Date(log.created_at), "dd/MM/yyyy, HH:mm", { locale: vi })}
                           </div>
                         </div>
                         <div

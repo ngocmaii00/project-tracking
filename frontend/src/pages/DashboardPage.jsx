@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import useStore from "../store/useStore";
 import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 import { models } from "powerbi-client";
 import { PowerBIEmbed } from "powerbi-client-react";
 import axios from "axios";
@@ -387,7 +388,7 @@ export default function DashboardPage() {
         <div className="page-header-left">
           <h1>Welcome back, {user?.name?.split(" ")[0]} 👋</h1>
           <p>
-            {format(new Date(), "EEEE, MMMM d, yyyy")} · {stats.activeProjects}{" "}
+            {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })} · {stats.activeProjects}{" "}
             active projects
           </p>
         </div>
@@ -758,7 +759,7 @@ export default function DashboardPage() {
                         marginTop: 4,
                       }}
                     >
-                      {new Date(n.created_at).toLocaleString()}
+                      {format(new Date(n.created_at), "dd/MM/yyyy, HH:mm", { locale: vi })}
                     </div>
                   </div>
                 ))}

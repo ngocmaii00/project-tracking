@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import useStore from '../store/useStore';
 import {
@@ -48,6 +48,7 @@ export default function Layout() {
   const notifRef = useRef(null);
   const wsRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
   const collapsed = !sidebarOpen;
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export default function Layout() {
         const msg = JSON.parse(e.data);
         if (msg.type === 'notification') {
           loadNotifications();
+          window.dispatchEvent(new CustomEvent('new_notification', { detail: msg.notification }));
           toast.success(msg.notification?.message || 'Bạn có thông báo mới!', {
             icon: '🔔',
             duration: 5000
@@ -96,6 +98,21 @@ export default function Layout() {
   }, []);
 
   const initials = user?.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?';
+
+  const handleNotificationClick = (n) => {
+    if (!n.is_read) markRead(n.id);
+    setShowNotifications(false);
+
+    // Navigation logic based on type
+    if (n.type === 'meeting_invite') {
+      navigate('/meetings');
+    } else if (n.type === 'risk_alert' || n.type === 'task_assignment') {
+      const data = typeof n.data === 'string' ? JSON.parse(n.data) : n.data;
+      if (data?.projectId) {
+        navigate(`/projects/${data.projectId}`);
+      }
+    }
+  };
 
   return (
     <div className="app-layout">
@@ -190,11 +207,7 @@ export default function Layout() {
                       <div
                         key={n.id}
                         className={`notif-item ${!n.is_read ? 'unread' : ''}`}
-                        onClick={() => {
-                          if (!n.is_read) markRead(n.id);
-                          // Option: redirect based on notification type/link
-                          setShowNotifications(false);
-                        }}
+                        onClick={() => handleNotificationClick(n)}
                       >
                         <div className="notif-icon-wrapper">
                           <Bell size={16} />

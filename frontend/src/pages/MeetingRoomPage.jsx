@@ -244,8 +244,8 @@ function MeetingChatPanel({ messages, user, wsRef, onClose, onOpenProfile }) {
                       </span>
                       <span className="meet-chat-time">
                         {new Date(m.createdAt || Date.now()).toLocaleTimeString(
-                          [],
-                          { hour: "2-digit", minute: "2-digit" },
+                          "vi-VN",
+                          { hour: "2-digit", minute: "2-digit" }
                         )}
                       </span>
                     </div>
@@ -744,6 +744,8 @@ export default function MeetingRoomPage() {
   const [meetingDuration, setMeetingDuration] = useState(0);
   const [recognitionLang, setRecognitionLang] = useState("vi-VN");
   const [showLangPicker, setShowLangPicker] = useState(false);
+  const [currentMeeting, setCurrentMeeting] = useState(null);
+  const [showEndModal, setShowEndModal] = useState(false);
 
   const toolbarRef = useRef(null);
   const isDragging = useRef(false);
@@ -802,6 +804,16 @@ export default function MeetingRoomPage() {
   const { setActiveMeeting, updateMeetingState, endActiveMeeting } = useStore();
 
   useEffect(() => {
+    const fetchMeeting = async () => {
+      try {
+        const { data } = await api.get(`/meetings/${id}`);
+        setCurrentMeeting(data.meeting || data);
+      } catch (err) {
+        console.error("Meeting fetch error", err);
+      }
+    };
+    fetchMeeting();
+
     initAudio();
     initWebSocket();
 
@@ -916,6 +928,13 @@ export default function MeetingRoomPage() {
               },
             ]);
           }
+        } else if (msg.event === "meeting_ended") {
+          toast("Cuộc họp đã được kết thúc bởi người tổ chức", { icon: "👋" });
+          setTimeout(() => {
+            cleanup();
+            endActiveMeeting();
+            navigate("/meetings");
+          }, 2000);
         }
       } else if (msg.type === "screen_share_data") {
         if (msg.userId !== user.id) {
@@ -1101,7 +1120,7 @@ export default function MeetingRoomPage() {
             user: user.name,
             avatar: user.avatar,
             text: e.result.text,
-            time: new Date().toLocaleTimeString([], {
+            time: new Date().toLocaleTimeString("vi-VN", {
               hour: "2-digit",
               minute: "2-digit",
             }),
@@ -1179,8 +1198,24 @@ export default function MeetingRoomPage() {
     );
   };
 
+  const handleLeave = () => {
+    cleanup();
+    endActiveMeeting();
+    navigate("/meetings");
+  };
+
   const stopMeeting = async () => {
     const fullText = transcript.map((t) => `[${t.user}]: ${t.text}`).join("\n");
+    
+    // Broadcast end to others
+    wsRef.current?.send(
+      JSON.stringify({
+        type: "meeting_event",
+        event: "meeting_ended",
+        userId: user.id,
+      }),
+    );
+
     toast
       .promise(processMeeting(id, fullText), {
         loading: "AI đang phân tích...",
@@ -1538,7 +1573,17 @@ export default function MeetingRoomPage() {
 
               <button
                 className={`meet-tb-action ${isRecording ? "rec" : "sync"}`}
-                onClick={isRecording ? stopMeeting : startTranscription}
+                onClick={() => {
+                  if (isRecording) {
+                    if (user.id === currentMeeting?.created_by) {
+                      setShowEndModal(true);
+                    } else {
+                      handleLeave();
+                    }
+                  } else {
+                    startTranscription();
+                  }
+                }}
               >
                 {isRecording ? (
                   <>
@@ -1635,6 +1680,44 @@ export default function MeetingRoomPage() {
           userId={selectedProfileId}
           onClose={() => setSelectedProfileId(null)}
         />
+      )}
+
+      {showEndModal && (
+        <div className="meet-modal-overlay" onClick={() => setShowEndModal(false)}>
+          <div className="meet-modal-content" style={{ width: 400, padding: 24, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: 'white', marginBottom: 12 }}>Kết thúc cuộc họp</h3>
+            <p style={{ fontSize: 14, color: '#94a3b8', marginBottom: 24 }}>Bạn là người tổ chức cuộc họp này. Bạn muốn thực hiện hành động nào?</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button 
+                className="btn btn-primary" 
+                style={{ padding: '12px', background: '#6366f1' }}
+                onClick={() => {
+                  setShowEndModal(false);
+                  stopMeeting();
+                }}
+              >
+                Kết thúc cuộc họp cho tất cả mọi người
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: '12px' }}
+                onClick={() => {
+                  setShowEndModal(false);
+                  handleLeave();
+                }}
+              >
+                Chỉ rời khỏi cuộc họp
+              </button>
+              <button 
+                className="btn btn-ghost" 
+                onClick={() => setShowEndModal(false)}
+              >
+                Hủy bỏ
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <style>{`

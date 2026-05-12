@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Search, FolderKanban, MoreVertical, Calendar, Users, TrendingUp, X } from 'lucide-react';
 import useStore from '../store/useStore';
 import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 function ProjectCard({ project }) {
   const pct = project.total_tasks ? Math.round((project.done_tasks / project.total_tasks) * 100) : 0;
@@ -38,7 +39,7 @@ function ProjectCard({ project }) {
           </span>
           {project.end_date && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Calendar size={12} /> {format(new Date(project.end_date), 'MMM d, yyyy')}
+              <Calendar size={12} /> {format(new Date(project.end_date), 'dd/MM/yyyy', { locale: vi })}
             </span>
           )}
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import useStore from "../store/useStore";
 import { format, parseISO } from "date-fns";
+import { vi } from "date-fns/locale";
 import api, { getAvatar } from "../lib/api";
 import toast from "react-hot-toast";
 
@@ -67,6 +68,7 @@ function CreateMeetingModal({ projects, onClose, onCreated }) {
     try {
       const p = await createMeeting({
         ...form,
+        scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
         project_id: form.project_id || null,
         attendees: selectedAttendees.map((a) => a.id),
       });
@@ -553,6 +555,16 @@ export default function MeetingsPage() {
 
   useEffect(() => {
     refreshAll();
+
+    const handleNewNotif = (e) => {
+      const notif = e.detail;
+      if (notif?.type === 'meeting_invite') {
+        refreshAll();
+      }
+    };
+
+    window.addEventListener('new_notification', handleNewNotif);
+    return () => window.removeEventListener('new_notification', handleNewNotif);
   }, []);
 
   const handleAccept = async (inviteId) => {
@@ -702,12 +714,15 @@ export default function MeetingsPage() {
                 }
                 try {
                   setLoading(true);
-                  await createMeeting({
+                  const newM = await createMeeting({
                     title: `Follow-up: ${m.title}`,
                     project_id: m.project_id,
                     scheduled_at: nextMeet.proposed_at,
                     attendees: attendeeIds,
                     meeting_type: "follow_up",
+                  });
+                  await api.post(`/meetings/${m.id}/accept-proposal`, {
+                    newMeetingId: newM.id,
                   });
                   toast.success("Đã lên lịch họp tiếp theo!");
                   refreshAll();
@@ -718,9 +733,26 @@ export default function MeetingsPage() {
                 }
               };
 
+              const scrollToMeeting = (id) => {
+                const el = document.getElementById(`meeting-${id}`);
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  el.style.boxShadow = "0 0 20px var(--primary)";
+                  setTimeout(() => (el.style.boxShadow = ""), 2000);
+                } else {
+                  toast("Cuộc họp đã được tạo, hãy tìm trong danh sách bên dưới", { icon: '🔍' });
+                }
+              };
+
+              const isPastOrPresent = (dateStr) => {
+                if (!dateStr) return true;
+                return new Date() >= new Date(dateStr);
+              };
+
               return (
                 <div
                   key={m.id}
+                  id={`meeting-${m.id}`}
                   className="card"
                   style={{
                     height: "fit-content",
@@ -729,6 +761,7 @@ export default function MeetingsPage() {
                     gap: 16,
                     position: "relative",
                     overflow: "hidden",
+                    transition: "box-shadow 0.3s ease",
                   }}
                 >
                   <div
@@ -760,8 +793,8 @@ export default function MeetingsPage() {
                       >
                         <Calendar size={12} />{" "}
                         {m.scheduled_at
-                          ? format(new Date(m.scheduled_at), "MMM d, h:mm a")
-                          : "Unscheduled"}
+                          ? format(new Date(m.scheduled_at), "dd/MM/yyyy, HH:mm", { locale: vi })
+                          : "Chưa đặt lịch"}
                         {p && (
                           <>
                             {" "}
@@ -1060,17 +1093,27 @@ export default function MeetingsPage() {
                             >
                               {format(
                                 parseISO(nextMeet.proposed_at),
-                                "EEEE, MMM d @ h:mm a",
+                                "EEEE, dd/MM/yyyy 'lúc' HH:mm",
+                                { locale: vi }
                               )}
                             </div>
                           </div>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            style={{ padding: "4px 12px" }}
-                            onClick={handleAcceptProposal}
-                          >
-                            Accept
-                          </button>
+                          {m.created_by === user.id && (
+                            <button
+                              className="btn btn-primary btn-sm"
+                              style={{ 
+                                padding: "4px 12px",
+                                opacity: nextMeet.accepted ? 0.7 : 1,
+                                background: nextMeet.accepted ? 'var(--success)' : undefined,
+                                borderColor: nextMeet.accepted ? 'var(--success)' : undefined,
+                                color: nextMeet.accepted ? 'white' : undefined,
+                                cursor: 'pointer'
+                              }}
+                              onClick={nextMeet.accepted ? () => scrollToMeeting(nextMeet.new_meeting_id) : handleAcceptProposal}
+                            >
+                              {nextMeet.accepted ? 'Accepted ✓' : 'Accept'}
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -1117,30 +1160,41 @@ export default function MeetingsPage() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 8 }}>
-                        <Link
-                          to={`/meetings/${m.id}/room`}
-                          className={`btn flex-1 ${activeMeeting?.id === m.id ? "btn-success" : "btn-primary"}`}
-                        >
-                          {activeMeeting?.id === m.id ? (
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                              }}
-                            >
-                              <Headphones
-                                size={16}
-                                className="beat-animation"
-                              />{" "}
-                              Return to Call
-                            </div>
-                          ) : (
-                            <>
-                              <Video size={16} /> Join Call
-                            </>
-                          )}
-                        </Link>
+                        {isPastOrPresent(m.scheduled_at) ? (
+                          <Link
+                            to={`/meetings/${m.id}/room`}
+                            className={`btn flex-1 ${activeMeeting?.id === m.id ? "btn-success" : "btn-primary"}`}
+                          >
+                            {activeMeeting?.id === m.id ? (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                }}
+                              >
+                                <Headphones
+                                  size={16}
+                                  className="beat-animation"
+                                />{" "}
+                                Return to Call
+                              </div>
+                            ) : (
+                              <>
+                                <Video size={16} /> Join Call
+                              </>
+                            )}
+                          </Link>
+                        ) : (
+                          <button
+                            className="btn btn-secondary flex-1"
+                            disabled
+                            style={{ cursor: "not-allowed", opacity: 0.6 }}
+                            title={`Cuộc họp diễn ra lúc ${format(new Date(m.scheduled_at), "h:mm a")}`}
+                          >
+                            <Clock size={16} /> Chưa đến giờ họp
+                          </button>
+                        )}
                         <button
                           className="btn btn-secondary flex-1"
                           onClick={() => setProcessModal(m)}
