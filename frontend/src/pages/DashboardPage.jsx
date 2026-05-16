@@ -299,15 +299,27 @@ function GlobalSearchBar() {
                   {r.content}
                 </div>
               )}
-              {(r.projectName || r.ownerName) && (
+              {(r.projectName || r.ownerName || r.due_date || r.dueDate) && (
                 <div
                   style={{
                     fontSize: 11,
                     color: "var(--text-muted)",
                     marginTop: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
                   }}
                 >
                   {[r.projectName, r.ownerName].filter(Boolean).join(" / ")}
+                  {r.type === "task" && (r.due_date || r.dueDate) && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <Calendar size={11} />
+                      {format(new Date(r.due_date || r.dueDate), "dd/MM/yyyy", {
+                        locale: vi,
+                      })}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

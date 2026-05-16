@@ -3,6 +3,19 @@ import { immer } from 'zustand/middleware/immer';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
+const commentKey = (comment) =>
+  comment?.id || `${comment?.author_id || ''}:${comment?.created_at || ''}:${comment?.content || ''}`;
+
+const uniqueComments = (comments = []) => {
+  const seen = new Set();
+  return comments.filter((comment) => {
+    const key = commentKey(comment);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const useStore = create(
   immer((set, get) => ({
     user: JSON.parse(localStorage.getItem('cwb_user') || 'null'),
@@ -123,6 +136,7 @@ const useStore = create(
     },
     loadTask: async (id) => {
       const { data } = await api.get(`/tasks/${id}`);
+      data.comments = uniqueComments(data.comments);
       set(s => { s.currentTask = data; });
       return data;
     },
@@ -134,7 +148,8 @@ const useStore = create(
       set(s => {
         if (s.currentTask?.task?.id === taskId) {
           if (!s.currentTask.comments) s.currentTask.comments = [];
-          s.currentTask.comments.push(data.comment);
+          const exists = s.currentTask.comments.some(c => commentKey(c) === commentKey(data.comment));
+          if (!exists) s.currentTask.comments.push(data.comment);
         }
       });
       return data.comment;
@@ -142,7 +157,7 @@ const useStore = create(
     handleRealtimeComment: (taskId, comment) => {
       set(s => {
         if (s.currentTask?.task?.id === taskId) {
-          const exists = s.currentTask.comments?.some(c => c.id === comment.id);
+          const exists = s.currentTask.comments?.some(c => commentKey(c) === commentKey(comment));
           if (!exists) {
             if (!s.currentTask.comments) s.currentTask.comments = [];
             s.currentTask.comments.push(comment);

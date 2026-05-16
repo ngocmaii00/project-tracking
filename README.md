@@ -1,131 +1,288 @@
-# 🚀 PM Intelligence Platform
+# CWB Project Intelligence Platform
 
-> **Nền tảng quản lý dự án thông minh thế hệ mới** — được xây dựng trên hệ sinh thái Microsoft Azure, tích hợp AI đa tầng, phân tích dữ liệu real-time bằng Power BI, tự động hoá quy trình với Power Automate, và tìm kiếm ngữ nghĩa qua Azure AI Search.
+Ứng dụng quản lý dự án có lớp AI hỗ trợ trích xuất công việc, phân tích rủi ro, mô phỏng kịch bản, họp trực tuyến, chat realtime, audit trail và dashboard Power BI Embedded.
 
-[![Azure](https://img.shields.io/badge/Azure-Cloud-0078D4?logo=microsoftazure)](https://azure.microsoft.com)
-[![Power BI](https://img.shields.io/badge/Power%20BI-Embedded-F2C811?logo=powerbi)](https://powerbi.microsoft.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Azure-336791?logo=postgresql)](https://azure.microsoft.com/products/postgresql)
-[![Node.js](https://img.shields.io/badge/Node.js-Backend-339933?logo=node.js)](https://nodejs.org)
-[![React](https://img.shields.io/badge/React-Frontend-61DAFB?logo=react)](https://reactjs.org)
+Repo hiện gồm 2 ứng dụng tách biệt:
 
----
+- `backend/`: Node.js + Express + WebSocket, dùng PostgreSQL làm database chính.
+- `frontend/`: React 19 + Vite + Zustand + React Router.
+- `dataset/`: bộ dữ liệu mẫu dạng CSV/JSONL để import vào PostgreSQL.
 
-## 📖 Giới thiệu
+## Công nghệ chính
 
-**PM Intelligence Platform** là giải pháp quản lý dự án cấp doanh nghiệp (Enterprise-grade), được thiết kế để tối ưu hoá hiệu suất làm việc thông qua trí tuệ nhân tạo và phân tích dữ liệu chuyên sâu. Hệ thống không chỉ lưu trữ dữ liệu mà còn chủ động phân tích rủi ro, dự báo tiến độ và hỗ trợ ra quyết định cho cấp quản lý.
+**Frontend**
 
-### 🌟 Điểm nhấn công nghệ
-- **AI-First Approach:** Sử dụng Azure AI Foundry và Microsoft Agent Framework để điều phối 10+ AI Agents chuyên biệt.
-- **Real-time Synchronization:** WebSocket cho thông báo và cập nhật dữ liệu tức thời.
-- **Deep Analytics:** Nhúng trực tiếp Power BI vào ứng dụng với Row-Level Security (RLS).
-- **Hybrid Search:** Kết hợp Full-text, Semantic và Vector Search thông qua Azure AI Search.
+- React 19, Vite 6, React Router 7
+- Zustand + Immer cho state management
+- Axios cho API client
+- Lucide React, Framer Motion, React Hot Toast
+- DnD Kit cho Kanban drag/drop
+- Power BI client cho nhúng report
+- Microsoft Cognitive Services Speech SDK cho tính năng họp/voice
 
----
+**Backend**
 
-## ✨ Tính năng cốt lõi
+- Node.js, Express 5
+- PostgreSQL qua `pg`
+- JWT auth, bcrypt password hashing
+- WebSocket qua `ws`
+- Multer upload file
+- Azure/OpenAI SDK, Azure AI Search, Azure Blob Storage, Cosmos DB, Azure Speech
+- Power BI REST API qua Azure AD client credentials
 
-### 🤖 Hệ thống AI Agents (Multi-Agent System)
-Hệ thống sử dụng **Microsoft Agent Framework** để điều phối các tác vụ thông minh:
-- **Extraction Agent:** Tự động tạo task từ biên bản họp hoặc transcript video.
-- **Risk Analysis Agent:** Đánh giá rủi ro dựa trên tiến độ, tài nguyên và ngân sách.
-- **Simulation Agent (What-if):** Mô phỏng kịch bản thay đổi nhân sự hoặc deadline.
-- **Predictive Timeline:** Dự báo ngày hoàn thành theo 3 kịch bản (Lạc quan, Thực tế, Bi quan).
+## Cấu trúc thư mục
 
-### 📊 Phân tích & Dashboard (Power BI)
-- **Project Health:** Theo dõi chỉ số sức khoẻ dự án, điểm rủi ro real-time.
-- **Resource Utilization:** Biểu đồ phân bổ nguồn lực, cảnh báo quá tải.
-- **Velocity Tracking:** Đo lường tốc độ hoàn thành công việc của đội ngũ.
+```text
+.
+|-- backend/
+|   |-- src/
+|   |   |-- index.js              # Express app, WebSocket, routes, webhooks, health, seed
+|   |   |-- database.js           # PostgreSQL pool, schema, Power BI views
+|   |   |-- middleware/auth.js    # JWT authenticate/authorize
+|   |   |-- routes/               # API modules
+|   |   |-- services/             # Azure/OpenAI/Blob/Search/Cosmos/Speech services
+|   |   `-- utils/importDataset.js
+|   |-- data/                     # có file SQLite cũ, code hiện tại không dùng làm DB chính
+|   `-- uploads/                  # file upload local
+|-- frontend/
+|   |-- src/
+|   |   |-- App.jsx               # route definitions
+|   |   |-- components/Layout.jsx # layout chính + WebSocket notification
+|   |   |-- lib/api.js            # axios client
+|   |   |-- store/useStore.js     # Zustand store
+|   |   `-- pages/                # dashboard, project, AI, meeting, chat...
+|   `-- public/
+`-- dataset/                      # synthetic sample data
+```
 
-### ⚡ Tự động hoá (Power Automate)
-- **Daily Scans:** Tự động quét rủi ro vào 8:00 mỗi sáng.
-- **Smart Notifications:** Nhắc nhở deadline qua Email/Teams dựa trên mức độ ưu tiên.
-- **GitHub Sync:** Tự động đóng task khi Pull Request được merge.
+## Tính năng chính
 
----
+- Đăng ký, đăng nhập, JWT auth, phân quyền `viewer`, `contributor`, `project_manager`, `admin`.
+- Quản lý user, profile, avatar, skill và đổi role.
+- Quản lý project, task, comment, Kanban, Gantt, analytics, project memory.
+- AI extraction từ text/email/meeting/manual source, lưu `ai_drafts`, duyệt hoặc từ chối draft.
+- AI risk analysis, what-if simulation, resource optimization, standup summary, behavioral insights, timeline prediction.
+- AI assistant có lịch sử local trên frontend và API chat theo project context.
+- Single source validator và apply proposal cho các đề xuất AI.
+- Meeting management: tạo họp, mời người tham gia, lời mời họp, phòng họp, xử lý transcript, đề xuất next steps.
+- Chat realtime: conversation DM/group, message history, read state, pin message, reply, file message.
+- Friends: tìm user, gửi request, accept/reject, danh sách bạn bè và pending requests.
+- Notification và risk register.
+- Audit log global và task change log.
+- Upload local qua `/api/upload` và upload/download/delete Azure Blob qua `/api/files`.
+- Search API: nếu Azure AI Search được cấu hình thì dùng search index; nếu không, một số route có fallback query PostgreSQL.
+- Power BI Embedded: cấp embed token khi có cấu hình `POWERBI_*`, trả demo mode nếu chưa cấu hình.
+- WebSocket `/ws`: notification, typing indicator, meeting event, screen share data, chat message, pin update, call event.
+- Power Automate webhook:
+  - `/api/webhooks/daily-risk-scan`
+  - `/api/webhooks/github-pr-merged`
 
-## 🛠️ Hướng dẫn cài đặt
+## Yêu cầu môi trường
 
-### 1. Chuẩn bị môi trường
-- Node.js v18+ & npm v9+
-- PostgreSQL v14+ (Hoặc Azure Database for PostgreSQL)
-- Tài khoản Azure (AI Foundry, Cosmos DB, Blob Storage, AI Search)
+- Node.js 18+.
+- npm.
+- PostgreSQL đang chạy và có database/user phù hợp.
+- Tùy chọn: Azure OpenAI/Azure AI Foundry, Azure AI Search, Azure Blob Storage, Cosmos DB, Azure Speech, Power BI Embedded.
 
-### 2. Cấu hình biến môi trường
-Tạo file `.env` trong thư mục `backend/`:
+Code backend luôn khởi tạo PostgreSQL schema khi start. Nếu không cấu hình Azure AI, một số tính năng AI sẽ chạy fallback rule-based. Nếu không cấu hình Search/Power BI/Blob/Cosmos, các service tương ứng sẽ bị tắt hoặc trả trạng thái chưa cấu hình.
+
+## Cài đặt
+
+Backend và frontend có `package.json` riêng, không có root package script.
+
+```bash
+cd backend
+npm install
+
+cd ../frontend
+npm install
+```
+
+## Cấu hình backend
+
+Tạo file `backend/.env`.
+
 ```env
 PORT=3001
-PG_HOST=your_host
-PG_USER=your_user
-PG_PASSWORD=your_password
-PG_DATABASE=cwb-project
-PG_SSL=true
 
-AZURE_OPENAI_ENDPOINT=...
-AZURE_OPENAI_KEY=...
-COSMOS_ENDPOINT=...
-COSMOS_KEY=...
-AZURE_STORAGE_CONNECTION_STRING=...
-AZURE_SEARCH_ENDPOINT=...
-AZURE_SEARCH_KEY=...
+# PostgreSQL
+PG_HOST=localhost
+PG_PORT=5432
+PG_DATABASE=postgres
+PG_USER=postgres
+PG_PASSWORD=postgres
+PG_SSL=false
 
-# Power BI Credentials
-PBI_WORKSPACE_ID=...
-PBI_REPORT_ID=...
-PBI_TENANT_ID=...
-PBI_CLIENT_ID=...
-PBI_CLIENT_SECRET=...
+# Auth
+JWT_SECRET=change-this-secret
+
+# Azure OpenAI / Azure AI Foundry - optional
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_API_KEY=
+AZURE_OPENAI_API_VERSION=2024-10-21
+AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
+
+# Azure AI Search - optional
+AZURE_SEARCH_ENDPOINT=
+AZURE_SEARCH_API_KEY=
+AZURE_SEARCH_INDEX=cwb-projects-index
+
+# Azure Blob Storage - optional
+AZURE_STORAGE_CONNECTION_STRING=
+AZURE_STORAGE_CONTAINER=project-files
+AZURE_STORAGE_ACCOUNT_NAME=
+AZURE_STORAGE_ACCOUNT_KEY=
+
+# Azure Cosmos DB - optional
+COSMOS_ENDPOINT=
+COSMOS_KEY=
+COSMOS_DATABASE=cwb_intelligence
+
+# Azure Speech - optional
+AZURE_SPEECH_KEY=
+AZURE_SPEECH_REGION=
+
+# Power BI Embedded - optional
+POWERBI_CLIENT_ID=
+POWERBI_CLIENT_SECRET=
+POWERBI_TENANT_ID=
+POWERBI_WORKSPACE_ID=
+POWERBI_REPORT_ID=
+
+# Power Automate webhooks - optional
+POWER_AUTOMATE_SECRET=
 ```
 
-### 3. Chạy ứng dụng
+Lưu ý tên biến trong code là `AZURE_OPENAI_API_KEY`, `AZURE_SEARCH_API_KEY` và `POWERBI_*`.
+
+## Cấu hình frontend
+
+Tạo file `frontend/.env` nếu muốn override URL mặc định.
+
+```env
+VITE_API_URL=http://localhost:3001/api
+VITE_WS_URL=ws://localhost:3001/ws
+```
+
+Nếu không tạo file này, frontend mặc định gọi:
+
+- API: `http://localhost:3001/api`
+- WebSocket: `ws://localhost:3001/ws`
+
+## Chạy ứng dụng
+
+Terminal 1:
+
 ```bash
-# Cài đặt
-npm install
-cd frontend && npm install
-cd ../backend && npm install
-
-# Khởi chạy Backend
-cd backend && npm start
-
-# Khởi chạy Frontend
-cd frontend && npm run dev
+cd backend
+npm run dev
 ```
 
----
+Backend chạy ở `http://localhost:3001`. Health check:
 
-## 📊 Hướng dẫn kết nối Power BI với Data hiện tại
+```bash
+curl http://localhost:3001/api/health
+```
 
-Hệ thống đã được thiết kế sẵn các **Database Views** tối ưu cho việc làm báo cáo. Để kết nối Power BI với dữ liệu PostgreSQL hiện tại, hãy làm theo các bước sau:
+Terminal 2:
 
-### Bước 1: Kết nối Data Source
-1. Mở **Power BI Desktop**.
-2. Chọn **Get Data** > **PostgreSQL database**.
-3. Nhập thông tin Server, Database từ file `.env` của bạn.
-4. Ở phần **Data Connectivity mode**, chọn **Import** hoặc **DirectQuery** (Khuyên dùng DirectQuery để dữ liệu real-time).
+```bash
+cd frontend
+npm run dev
+```
 
-### Bước 2: Sử dụng các View có sẵn
-Thay vì chọn các bảng thô, hãy chọn các **Views** sau để có dữ liệu đã được xử lý logic:
-- `pbi_project_health`: Chứa thông tin tổng quan dự án, điểm rủi ro, tỉ lệ hoàn thành và tên PM.
-- `pbi_task_velocity`: Chứa chi tiết task, phân loại trạng thái (Overdue, Blocked, On Track) và thông tin người thực hiện.
+Vite sẽ in URL frontend, thường là `http://localhost:5173`.
 
-### Bước 3: Cấu hình Embed lên Web
-1. Publish báo cáo lên **Power BI Service (Workspaces)**.
-2. Lấy **Workspace ID** và **Report ID**.
-3. Cập nhật các ID này vào file `.env` của Backend.
-4. Ứng dụng sẽ tự động sinh **Embed Token** thông qua API `/api/powerbi/embed-token` để hiển thị biểu đồ trong trang Dashboard và Project Detail.
+## API chính
 
----
+Các route chính được mount trong `backend/src/index.js`:
 
-## 🏗️ Kiến trúc hệ thống
-Hệ thống sử dụng kiến trúc **Micro-services ready** với:
-- **Frontend:** React + Zustand + Lucide Icons.
-- **Backend:** Node.js Express + WebSocket (ws).
-- **Database:** PostgreSQL (Relational) & Cosmos DB (Document/Event Log).
-- **Storage:** Azure Blob Storage cho Transcript & Document.
+| Prefix | Nội dung |
+| --- | --- |
+| `/api/auth` | register, login, profile, users, role |
+| `/api/projects` | CRUD project, analytics, changes, memory |
+| `/api/tasks` | CRUD task, comments, reorder |
+| `/api/ai` | extract, drafts, risk, simulate, optimize, standup, chat, proposals |
+| `/api/meetings` | meeting CRUD, invitations, transcript processing, Speech credentials |
+| `/api/notifications` | notifications và risk register |
+| `/api/files` | Azure Blob upload/download/delete |
+| `/api/upload` | upload local vào `backend/uploads` |
+| `/api/search` | search global/tasks/meetings |
+| `/api/powerbi` | embed token và report list |
+| `/api/chat` | conversations, messages, group members |
+| `/api/friends` | user search, friend requests, friends list |
+| `/api/audit` | audit logs |
 
----
+Ngoài ra:
 
-## 📞 Liên hệ & Đóng góp
-Nếu bạn gặp vấn đề trong quá trình triển khai, vui lòng tạo **Issue** hoặc liên hệ đội ngũ phát triển.
+- `GET /api/health`
+- `POST /api/seed`
+- `POST /api/webhooks/daily-risk-scan`
+- `POST /api/webhooks/github-pr-merged`
+- `ws://localhost:3001/ws?userId=<id>`
 
----
-*© 2026 CWB Intelligence Platform. Build with 💙 on Azure.*
+## Frontend routes
+
+Các route chính nằm trong `frontend/src/App.jsx`:
+
+- `/login`
+- `/dashboard`
+- `/projects`
+- `/projects/:id`
+- `/projects/:id/kanban`
+- `/projects/:id/gantt`
+- `/projects/:id/risks`
+- `/projects/:id/simulation`
+- `/projects/:id/resources`
+- `/projects/:id/audit`
+- `/ai/extract`
+- `/ai/assistant`
+- `/meetings`
+- `/meetings/:id/room`
+- `/chat`
+- `/profile`
+
+Tất cả route ngoài `/login` được bọc bởi `ProtectedRoute` và cần user trong Zustand/localStorage.
+
+## Database
+
+Schema PostgreSQL được tạo trong `backend/src/database.js`, gồm các bảng chính:
+
+- `users`
+- `projects`
+- `tasks`
+- `task_changes`
+- `ai_drafts`
+- `meetings`
+- `risks`
+- `allocations`
+- `notifications`
+- `simulations`
+- `comments`
+- `project_memory`
+- `conversations`
+- `conversation_members`
+- `friendships`
+- `meeting_invitations`
+- `messages`
+- `audit_logs`
+
+Views Power BI được tạo khi backend start:
+
+- `pbi_project_health`
+- `pbi_task_velocity`
+
+File `backend/src/database/views.sql` còn định nghĩa thêm:
+
+- `pbi_plan_changes`
+- `pbi_resource_workload`
+
+Nếu cần các view bổ sung này trong database, chạy nội dung file SQL đó thủ công hoặc thêm vào migration.
+
+## Ghi chú về tích hợp Azure
+
+- `services/aiAgents.js` dùng Azure OpenAI nếu có `AZURE_OPENAI_ENDPOINT`; nếu không, nhiều agent trả rule-based fallback.
+- `services/azureSearch.js` chỉ bật khi có `AZURE_SEARCH_ENDPOINT` và `AZURE_SEARCH_API_KEY`.
+- `routes/powerbi.js` trả `{ configured: false }` nếu thiếu `POWERBI_CLIENT_ID`, `POWERBI_CLIENT_SECRET` hoặc `POWERBI_TENANT_ID`.
+- `services/blobStorage.js` hỗ trợ connection string hoặc account name/key tùy cấu hình.
+- `services/cosmosDb.js` dùng Cosmos DB cho audit/event memory khi có cấu hình; nếu không thì service bị disable.

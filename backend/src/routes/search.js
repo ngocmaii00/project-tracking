@@ -12,14 +12,24 @@ const router = express.Router();
 
 function mergeResults(...groups) {
   const seen = new Set();
-  return groups
-    .flatMap(group => group?.results || [])
-    .filter(item => {
+  const merged = [];
+
+  for (const item of groups.flatMap(group => group?.results || [])) {
       const key = `${item.type || 'unknown'}:${item.id}`;
-      if (seen.has(key)) return false;
+      const existing = merged.find(result => `${result.type || 'unknown'}:${result.id}` === key);
+      if (existing) {
+        Object.entries(item).forEach(([field, value]) => {
+          if ((existing[field] === undefined || existing[field] === null || existing[field] === '') && value !== undefined && value !== null && value !== '') {
+            existing[field] = value;
+          }
+        });
+        continue;
+      }
       seen.add(key);
-      return true;
-    });
+      merged.push({ ...item });
+  }
+
+  return merged;
 }
 
 /**

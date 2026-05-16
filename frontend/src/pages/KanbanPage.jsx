@@ -171,6 +171,7 @@ function KanbanCard({ task, users, currentUser, onDragStart, onClick }) {
 function TaskDetailModal({ task, users, currentUser, onClose, onSave }) {
   const [form, setForm] = useState({ ...task });
   const [loading, setLoading] = useState(false);
+  const [commentLoading, setCommentLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
   const { updateTask, loadTask, currentTask, addTaskComment } = useStore();
 
@@ -197,14 +198,27 @@ function TaskDetailModal({ task, users, currentUser, onClose, onSave }) {
 
   const submitComment = async (e) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || commentLoading) return;
+    setCommentLoading(true);
     try {
       await addTaskComment(task.id, commentText);
       setCommentText("");
     } catch {
       console.log("Error adding comment");
+    } finally {
+      setCommentLoading(false);
     }
   };
+
+  const comments = Array.from(
+    new Map(
+      (currentTask?.comments || []).map((comment) => [
+        comment.id ||
+          `${comment.author_id || ""}:${comment.created_at || ""}:${comment.content || ""}`,
+        comment,
+      ]),
+    ).values(),
+  );
 
   return (
     <div
@@ -335,8 +349,8 @@ function TaskDetailModal({ task, users, currentUser, onClose, onSave }) {
                   marginBottom: 24,
                 }}
               >
-                {currentTask?.comments?.length > 0 ? (
-                  currentTask.comments.map((comment) => (
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
                     <div key={comment.id} style={{ display: "flex", gap: 12 }}>
                       <div
                         className="avatar"
@@ -438,6 +452,7 @@ function TaskDetailModal({ task, users, currentUser, onClose, onSave }) {
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     style={{ paddingRight: 80 }}
+                    disabled={commentLoading}
                   />
                   <button
                     type="submit"
@@ -448,9 +463,9 @@ function TaskDetailModal({ task, users, currentUser, onClose, onSave }) {
                       top: 4,
                       bottom: 4,
                     }}
-                    disabled={!commentText.trim()}
+                    disabled={!commentText.trim() || commentLoading}
                   >
-                    Post
+                    {commentLoading ? "..." : "Post"}
                   </button>
                 </div>
               </form>
