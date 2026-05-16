@@ -129,6 +129,40 @@ const useStore = create(
     reorderTasks: async (updates) => {
       await api.put('/tasks/bulk/reorder', { tasks: updates });
     },
+    addTaskComment: async (taskId, content) => {
+      const { data } = await api.post(`/tasks/${taskId}/comments`, { content });
+      set(s => {
+        if (s.currentTask?.task?.id === taskId) {
+          if (!s.currentTask.comments) s.currentTask.comments = [];
+          s.currentTask.comments.push(data.comment);
+        }
+      });
+      return data.comment;
+    },
+    handleRealtimeComment: (taskId, comment) => {
+      set(s => {
+        if (s.currentTask?.task?.id === taskId) {
+          const exists = s.currentTask.comments?.some(c => c.id === comment.id);
+          if (!exists) {
+            if (!s.currentTask.comments) s.currentTask.comments = [];
+            s.currentTask.comments.push(comment);
+          }
+        }
+      });
+    },
+    handleRealtimeTaskUpdate: (task) => {
+      set(s => {
+        const update = (arr) => {
+          const i = arr?.findIndex(t => t.id === task.id);
+          if (i > -1) arr[i] = { ...arr[i], ...task };
+        };
+        update(s.tasks);
+        update(s.currentProject?.tasks);
+        if (s.currentTask?.task?.id === task.id) {
+          s.currentTask.task = { ...s.currentTask.task, ...task };
+        }
+      });
+    },
 
     aiDrafts: [],
     aiProcessing: false,

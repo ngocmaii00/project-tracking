@@ -603,7 +603,7 @@ function TaskDetailModal({ task, users, currentUser, onClose, onSave }) {
                       marginBottom: 8,
                     }}
                   >
-                    🤖 AI Extracted
+                    🤖 Imported
                   </div>
                   <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
                     Confidence: {Math.round((task.confidence_score || 0) * 100)}

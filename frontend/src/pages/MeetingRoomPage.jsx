@@ -430,7 +430,7 @@ function AIDeadlineTab({ userId }) {
         </div>
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: "white" }}>
-            AI Deadline Tracker
+            Deadline Tracker
           </div>
           <div style={{ fontSize: 10, color: "#475569" }}>Deadline của bạn</div>
         </div>
@@ -605,7 +605,7 @@ function TranscriptTab({ transcript, onTranslate }) {
             Chưa có transcript
           </div>
           <div style={{ fontSize: 11, color: "#334155" }}>
-            Nhấn "Sync AI" để bắt đầu ghi
+            Nhấn "Sync" để bắt đầu ghi
           </div>
         </div>
       ) : (
@@ -724,7 +724,7 @@ export default function MeetingRoomPage() {
   const [videoStream, setVideoStream] = useState(null);
   const [audioStream, setAudioStream] = useState(null);
   const [screenStream, setScreenStream] = useState(null);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [isVideoOff, setIsVideoOff] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0);
@@ -793,6 +793,10 @@ export default function MeetingRoomPage() {
     return () => window.removeEventListener("resize", centerToolbar);
   }, []);
 
+  const [peers, setPeers] = useState(new Map()); // userId -> { pc, stream, userName }
+  const peersRef = useRef(new Map());
+  const ICE_SERVERS = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
   useEffect(() => {
     if (videoRef.current) videoRef.current.srcObject = videoStream;
   }, [videoStream]);
@@ -814,7 +818,6 @@ export default function MeetingRoomPage() {
     };
     fetchMeeting();
 
-    initAudio();
     initWebSocket();
 
     setActiveMeeting({
@@ -856,6 +859,10 @@ export default function MeetingRoomPage() {
       recognizerRef.current = null;
     }
     
+    peersRef.current.forEach(({ pc }) => pc.close());
+    peersRef.current.clear();
+    setPeers(new Map());
+    
     if (videoStreamRef.current) {
       videoStreamRef.current.getTracks().forEach(t => t.stop());
       videoStreamRef.current = null;
@@ -874,15 +881,77 @@ export default function MeetingRoomPage() {
     if (audioContextRef.current) audioContextRef.current.close();
   };
 
+  const renegotiatePeer = async (targetUserId, pc) => {
+    if (!wsRef.current || pc.signalingState !== "stable") return;
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      wsRef.current.send(JSON.stringify({
+        type: "meeting_event",
+        event: "webrtc_signal",
+        meetingId: id,
+        targetId: targetUserId,
+        signal: { offer: pc.localDescription },
+        userId: user.id,
+        userName: user.name
+      }));
+    } catch (err) {
+      console.error("WebRTC renegotiation error:", err);
+    }
+  };
+
+  const replaceTrackForPeers = async (kind, track, stream) => {
+    peersRef.current.forEach(({ pc }, targetUserId) => {
+      const sender = pc.getSenders().find((s) => s.track?.kind === kind);
+      if (sender) {
+        sender.replaceTrack(track || null);
+      } else if (track && stream) {
+        pc.addTrack(track, stream);
+        renegotiatePeer(targetUserId, pc);
+      }
+    });
+  };
+
+  const updatePeerMediaState = (targetUserId, patch) => {
+    setPeers((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(targetUserId) || {};
+      next.set(targetUserId, { ...existing, ...patch });
+      return next;
+    });
+
+    const existingRef = peersRef.current.get(targetUserId) || {};
+    peersRef.current.set(targetUserId, { ...existingRef, ...patch });
+  };
+
+  const broadcastMediaState = (patch = {}) => {
+    wsRef.current?.send(JSON.stringify({
+      type: "meeting_event",
+      event: "media_state",
+      meetingId: id,
+      userId: user.id,
+      userName: user.name,
+      isMuted: patch.isMuted ?? isMutedRef.current,
+      isVideoOff: patch.isVideoOff ?? !videoStreamRef.current,
+    }));
+  };
+
   const initAudio = async () => {
     try {
       const as = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true },
       });
       setAudioStream(as);
+      audioStreamRef.current = as;
+      setIsMuted(false);
+      isMutedRef.current = false;
       initAudioVisualizer(as);
+      await replaceTrackForPeers("audio", as.getAudioTracks()[0], as);
+      broadcastMediaState({ isMuted: false });
+      return as;
     } catch {
-      console.error("Mic access denied");
+      toast.error("Không thể truy cập microphone");
+      return null;
     }
   };
 
@@ -904,6 +973,98 @@ export default function MeetingRoomPage() {
       animationFrameRef.current = requestAnimationFrame(update);
     };
     update();
+  };
+
+  const createPC = (targetUserId, targetUserName, isOfferer) => {
+    const existingPeer = peersRef.current.get(targetUserId);
+    if (existingPeer?.pc) return existingPeer.pc;
+
+    const pc = new RTCPeerConnection(ICE_SERVERS);
+    pc.onicecandidate = (e) => {
+      if (e.candidate && wsRef.current) {
+        wsRef.current.send(JSON.stringify({
+          type: "meeting_event",
+          event: "webrtc_signal",
+          meetingId: id,
+          targetId: targetUserId,
+          signal: { candidate: e.candidate },
+          userId: user.id,
+          userName: user.name
+        }));
+      }
+    };
+
+    pc.ontrack = (e) => {
+      console.log(`Track received from ${targetUserName}:`, e.streams[0]);
+      setPeers(prev => {
+        const next = new Map(prev);
+        const existing = next.get(targetUserId) || { userName: targetUserName };
+        next.set(targetUserId, { ...existing, stream: e.streams[0], pc });
+        return next;
+      });
+      const existingRef = peersRef.current.get(targetUserId) || {};
+      peersRef.current.set(targetUserId, {
+        ...existingRef,
+        pc,
+        stream: e.streams[0],
+        userName: targetUserName,
+      });
+    };
+
+    // Add local tracks
+    const streams = [audioStreamRef.current, videoStreamRef.current].filter(Boolean);
+    streams.forEach(s => s.getTracks().forEach(t => pc.addTrack(t, s)));
+
+    if (isOfferer) {
+      pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
+        wsRef.current.send(JSON.stringify({
+          type: "meeting_event",
+          event: "webrtc_signal",
+          meetingId: id,
+          targetId: targetUserId,
+          signal: { offer: pc.localDescription },
+          userId: user.id,
+          userName: user.name
+        }));
+      });
+    }
+
+    peersRef.current.set(targetUserId, {
+      ...existingPeer,
+      pc,
+      userName: targetUserName,
+      isMuted: existingPeer?.isMuted ?? true,
+      isVideoOff: existingPeer?.isVideoOff ?? true,
+    });
+    return pc;
+  };
+
+  const handleSignal = async (msg) => {
+    const { userId, userName, signal } = msg;
+    let pc = peersRef.current.get(userId)?.pc;
+    
+    if (!pc) {
+      pc = createPC(userId, userName, false);
+    }
+
+    if (signal.offer) {
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      wsRef.current.send(JSON.stringify({
+        type: "meeting_event",
+        event: "webrtc_signal",
+        meetingId: id,
+        targetId: userId,
+        signal: { answer: pc.localDescription },
+        userId: user.id,
+        userName: user.name
+      }));
+    } else if (signal.answer) {
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.answer));
+    } else if (signal.candidate) {
+      await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+    }
   };
 
   const initWebSocket = () => {
@@ -935,6 +1096,29 @@ export default function MeetingRoomPage() {
             endActiveMeeting();
             navigate("/meetings");
           }, 2000);
+        } else if (msg.event === "join") {
+          if (msg.userId !== user.id) {
+            toast(`${msg.userName} đã tham gia cuộc họp`, { icon: "👤" });
+            updatePeerMediaState(msg.userId, {
+              userName: msg.userName,
+              isMuted: msg.isMuted ?? true,
+              isVideoOff: msg.isVideoOff ?? true,
+            });
+            createPC(msg.userId, msg.userName, true);
+            broadcastMediaState();
+          }
+        } else if (msg.event === "media_state") {
+          if (msg.userId !== user.id) {
+            updatePeerMediaState(msg.userId, {
+              userName: msg.userName,
+              isMuted: msg.isMuted,
+              isVideoOff: msg.isVideoOff,
+            });
+          }
+        } else if (msg.event === "webrtc_signal") {
+          if (msg.targetId === user.id) {
+            handleSignal(msg);
+          }
         }
       } else if (msg.type === "screen_share_data") {
         if (msg.userId !== user.id) {
@@ -961,60 +1145,67 @@ export default function MeetingRoomPage() {
         });
       }
     };
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        type: "meeting_event",
+        event: "join",
+        meetingId: id,
+        userId: user.id,
+        userName: user.name,
+        avatar: user.avatar,
+        isMuted: isMutedRef.current,
+        isVideoOff: !videoStreamRef.current
+      }));
+    };
     wsRef.current = ws;
   };
 
+  const toggleMic = async () => {
+    if (audioStreamRef.current) {
+      const current = audioStreamRef.current;
+      await replaceTrackForPeers("audio", null);
+      current.getTracks().forEach((track) => track.stop());
+      setAudioStream(null);
+      audioStreamRef.current = null;
+      setIsMuted(true);
+      isMutedRef.current = true;
+      broadcastMediaState({ isMuted: true });
+      setVolumeLevel(0);
+      if (recognizerRef.current) {
+        recognizerRef.current.stopContinuousRecognitionAsync();
+        recognizerRef.current = null;
+        setIsRecording(false);
+      }
+      return;
+    }
+
+    await initAudio();
+  };
+
   const toggleVideo = async () => {
-    if (videoStream) {
-      videoStream.getTracks().forEach((t) => t.stop());
+    if (videoStreamRef.current) {
+      const current = videoStreamRef.current;
+      await replaceTrackForPeers("video", null);
+      current.getTracks().forEach((track) => track.stop());
       setVideoStream(null);
+      videoStreamRef.current = null;
       setIsVideoOff(true);
-    } else {
+      broadcastMediaState({ isVideoOff: true });
+      return;
+    }
+
       try {
         const vs = await navigator.mediaDevices.getUserMedia({
           video: { width: 1280, height: 720 },
         });
         setVideoStream(vs);
+        videoStreamRef.current = vs;
         setIsVideoOff(false);
+        await replaceTrackForPeers("video", vs.getVideoTracks()[0], vs);
+        broadcastMediaState({ isVideoOff: false });
       } catch {
         toast.error("Không thể truy cập Camera");
       }
-    }
-  };
-
-  useEffect(() => {
-    isMutedRef.current = isMuted;
-  }, [isMuted]);
-
-  const toggleMic = async () => {
-    if (audioStream) {
-      audioStream.getTracks().forEach((t) => t.stop());
-      setAudioStream(null);
-      setIsMuted(true);
-      if (recognizerRef.current) {
-        recognizerRef.current.stopContinuousRecognitionAsync(() => {
-          recognizerRef.current = null;
-        });
-      }
-    } else {
-      try {
-        const as = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true },
-        });
-        setAudioStream(as);
-        initAudioVisualizer(as);
-        setIsMuted(false);
-        // Cập nhật ref ngay lập tức để các hàm khác dùng được giá trị mới nhất
-        isMutedRef.current = false;
-        audioStreamRef.current = as;
-        
-        if (isRecording) {
-          startTranscription(true); // Truyền flag để bỏ qua check isMuted cũ
-        }
-      } catch {
-        toast.error("Không thể truy cập Microphone");
-      }
-    }
   };
 
   const toggleScreenShare = () => {
@@ -1089,10 +1280,13 @@ export default function MeetingRoomPage() {
     };
   }, [isScreenSharing, screenStream]);
 
-  const startTranscription = async (forceUnmute = false) => {
+  const startTranscription = async (forceUnmute = false, langCode = null) => {
+    if ((isMuted || !audioStreamRef.current) && !forceUnmute) {
+      toast.error("Bạn đang tắt mic! Hãy bật mic để AI có thể nghe thấy.", { icon: "🎙️" });
+      return;
+    }
     setIsRecording(true);
-    if (isMuted && !forceUnmute) return;
-
+    
     if (recognizerRef.current) {
       recognizerRef.current.stopContinuousRecognitionAsync();
     }
@@ -1108,7 +1302,7 @@ export default function MeetingRoomPage() {
         creds.key,
         creds.region,
       );
-      config.speechRecognitionLanguage = recognitionLang;
+      config.speechRecognitionLanguage = langCode || recognitionLang;
       const recognizer = new SpeechSDK.SpeechRecognizer(
         config,
         SpeechSDK.AudioConfig.fromDefaultMicrophoneInput(),
@@ -1153,7 +1347,7 @@ export default function MeetingRoomPage() {
     if (!segment) return;
 
     try {
-      // Use AI Assistant's chat function to translate (it's already set up to handle prompts)
+      // Use Planning Assistant's chat function to translate (it's already set up to handle prompts)
       const { data } = await api.post("/ai/chat", {
         message: `Translate the following text to ${langCode}: "${segment.text}". Only return the translated text.`,
       });
@@ -1232,8 +1426,8 @@ export default function MeetingRoomPage() {
   const handleMouseDown = (e) => {
     isDragging.current = true;
     const rect = toolbarRef.current.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left - 40;
-    const offsetY = e.clientY - rect.top + 20;
+    const offsetX = e.clientX - rect.left - 50;
+    const offsetY = e.clientY - rect.top + 5;
     const onMouseMove = (em) => {
       if (!isDragging.current) return;
       setToolbarPos({ x: em.clientX - offsetX, y: em.clientY - offsetY });
@@ -1289,8 +1483,18 @@ export default function MeetingRoomPage() {
       {/* Main video area */}
       <div className="meet-video-section">
         {/* Top status bar */}
-        <div className="meet-status-bar">
-          <div className="meet-status-left">
+        <div className="meet-layout-main">
+          <div style={{ display: 'none' }}>
+            {Array.from(peers.entries()).map(([userId, p]) => (
+              <audio 
+                key={`audio-${userId}`} 
+                autoPlay 
+                ref={el => { if (el) el.srcObject = p.stream; }} 
+              />
+            ))}
+          </div>
+          
+          <div className="meet-layout-grid">
             <div className="meet-rec-dot" />
             <span className="meet-duration">
               {formatDuration(meetingDuration)}
@@ -1307,7 +1511,7 @@ export default function MeetingRoomPage() {
           <div className="meet-status-right">
             <div className="meet-participants">
               <Users size={12} />
-              <span>2 người</span>
+              <span>{peers.size + 1} người</span>
             </div>
           </div>
         </div>
@@ -1397,7 +1601,7 @@ export default function MeetingRoomPage() {
                     )}
                   </div>
                   <div className="meet-user-label">
-                    <span>{user.name}</span>
+                    <span>{user.name} (Bạn)</span>
                     {isMuted ? (
                       <MicOff size={12} style={{ color: "#ef4444" }} />
                     ) : (
@@ -1423,6 +1627,41 @@ export default function MeetingRoomPage() {
               </div>
             )}
           </div>
+
+          {/* Remote Participants Grid */}
+          {peers.size > 0 && (
+            <div className={`meet-remote-grid ${peers.size > 1 ? 'multi' : ''}`}>
+              {Array.from(peers.entries()).map(([userId, p]) => (
+                <div key={userId} className="meet-video-card remote">
+                  <div className="meet-video-inner">
+                    {p.stream && p.stream.getVideoTracks().length > 0 && !p.isVideoOff ? (
+                      <video 
+                        autoPlay 
+                        playsInline 
+                        muted // Muted to avoid double audio (handled by hidden audio element)
+                        className="meet-video-el"
+                        ref={el => { if (el) el.srcObject = p.stream; }}
+                      />
+                    ) : (
+                      <div className="meet-avatar-stage mini">
+                        <div className="meet-user-avatar sm" style={{ background: `hsl(${p.userName.charCodeAt(0) * 40}, 50%, 40%)` }}>
+                          {p.userName[0]}
+                        </div>
+                      </div>
+                    )}
+                    <div className="meet-remote-label">
+                      <span>{p.userName}</span>
+                      {p.isMuted ? (
+                        <MicOff size={12} style={{ color: "#ef4444" }} />
+                      ) : (
+                        <Mic size={12} style={{ color: "#10b981" }} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Layout picker floating menu */}
@@ -1510,7 +1749,7 @@ export default function MeetingRoomPage() {
                           setRecognitionLang(l.code);
                           setShowLangPicker(false);
                           if (isRecording) {
-                            startTranscription(); // Restart with new lang
+                            startTranscription(false, l.code); // Restart with new lang immediately
                           }
                         }}
                       >
@@ -1561,39 +1800,54 @@ export default function MeetingRoomPage() {
 
               <div className="meet-tb-divider" />
 
-              <button
-                className="meet-tb-ghost"
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              >
-                <Sidebar
-                  size={17}
-                  style={{ color: isSidebarOpen ? "#7eb8ff" : undefined }}
-                />
-              </button>
+              <div className="meet-tb-group">
+                <button
+                  className={`meet-tb-btn ${isRecording ? "active" : ""}`}
+                  onClick={() => {
+                    if (isRecording) {
+                      setIsRecording(false);
+                      if (recognizerRef.current) {
+                        recognizerRef.current.stopContinuousRecognitionAsync();
+                        recognizerRef.current = null;
+                      }
+                      toast("Đã dừng ghi Transcript", { icon: "⏸️" });
+                    } else {
+                      startTranscription();
+                    }
+                  }}
+                  title={isRecording ? "Dừng Sync" : "Bắt đầu Sync"}
+                >
+                  <Zap size={17} style={{ color: isRecording ? "#f59e0b" : undefined }} />
+                  <span>Sync</span>
+                </button>
 
-              <button
-                className={`meet-tb-action ${isRecording ? "rec" : "sync"}`}
-                onClick={() => {
-                  if (isRecording) {
+                <button
+                  className="meet-tb-btn danger"
+                  onClick={() => {
                     if (user.id === currentMeeting?.created_by) {
                       setShowEndModal(true);
                     } else {
                       handleLeave();
                     }
-                  } else {
-                    startTranscription();
-                  }
-                }}
+                  }}
+                  title="Rời khỏi cuộc họp"
+                >
+                  <PhoneOff size={17} />
+                  <span>Leave</span>
+                </button>
+              </div>
+
+              <div className="meet-tb-divider" />
+
+              <button
+                className="meet-tb-ghost"
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                title="Đóng/Mở Sidebar"
               >
-                {isRecording ? (
-                  <>
-                    <PhoneOff size={15} /> Kết thúc
-                  </>
-                ) : (
-                  <>
-                    <Zap size={15} /> Sync AI
-                  </>
-                )}
+                <Sidebar
+                  size={17}
+                  style={{ color: isSidebarOpen ? "#7eb8ff" : undefined }}
+                />
               </button>
 
               <button
@@ -1764,6 +2018,33 @@ export default function MeetingRoomPage() {
           flex-direction: column;
           position: relative;
           overflow: hidden;
+          min-width: 0;
+        }
+
+        .meet-layout-main {
+          position: absolute;
+          top: 14px;
+          left: 18px;
+          right: 18px;
+          height: 42px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 0 14px;
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 14px;
+          background: rgba(8,13,26,0.72);
+          backdrop-filter: blur(18px);
+          z-index: 30;
+          box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+        }
+
+        .meet-layout-grid {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 120px;
         }
 
         .meet-status-bar {
@@ -1808,17 +2089,59 @@ export default function MeetingRoomPage() {
           flex: 1;
           display: grid;
           gap: 16px;
-          padding: 60px 20px 120px;
+          padding: 72px 24px 118px;
+          min-height: 0;
         }
         .meet-video-card.main {
           position: relative;
-          border-radius: 24px;
+          min-height: 280px;
+          border-radius: 18px;
           overflow: hidden;
           background: #0f1629;
-          border: 1px solid rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.07);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 48px rgba(0,0,0,0.22);
         }
         .meet-video-inner { width: 100%; height: 100%; }
         .meet-video-el { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        .meet-remote-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 14px;
+          min-height: 180px;
+        }
+        .meet-remote-grid.multi {
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+        .meet-video-card.remote {
+          position: relative;
+          min-height: 180px;
+          border-radius: 16px;
+          overflow: hidden;
+          background: #0f1629;
+          border: 1px solid rgba(255,255,255,0.06);
+        }
+        .meet-remote-label {
+          position: absolute;
+          left: 12px;
+          bottom: 12px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          max-width: calc(100% - 24px);
+          padding: 5px 10px;
+          border-radius: 999px;
+          background: rgba(0,0,0,0.62);
+          color: white;
+          font-size: 12px;
+          font-weight: 700;
+          z-index: 5;
+        }
+        .meet-remote-label span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
 
         .meet-avatar-stage {
           width: 100%; height: 100%;

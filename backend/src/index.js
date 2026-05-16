@@ -536,7 +536,7 @@ async function start() {
   server.listen(PORT, () => {
     console.log(`
 ╔══════════════════════════════════════════════════════════╗
-║   CWB Project Intelligence Platform v2.0 — Azure        ║
+║   PM Intelligence Platform v2.0 — Azure        ║
 ║   API:       http://localhost:${PORT}                      ║
 ║   WebSocket: ws://localhost:${PORT}/ws                     ║
 ║   AI:        ${process.env.AZURE_OPENAI_ENDPOINT ? "Azure AI Foundry ✅" : "Rule-based mode ⚡"}         ║

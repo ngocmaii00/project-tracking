@@ -54,6 +54,24 @@ router.get('/invitations', authenticate, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const meeting = await queryOne(`
+      SELECT DISTINCT m.*, u.name as created_by_name
+      FROM meetings m
+      LEFT JOIN users u ON m.created_by = u.id
+      LEFT JOIN meeting_invitations mi ON m.id = mi.meeting_id
+      WHERE m.id = $1
+        AND (m.created_by = $2 OR (mi.user_id = $2 AND mi.status = 'accepted'))
+    `, [req.params.id, req.user.id]);
+
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    res.json({ meeting });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/:id/invite', authenticate, async (req, res) => {
   try {
     const { user_id } = req.body;
@@ -226,8 +244,9 @@ router.post('/:id/process', authenticate, async (req, res) => {
     // If AI failed or returned null, generate rule-based summary
     if (!intel) {
       const lines = finalTranscript.split('\n').filter(l => l.trim());
-      const actionItems = lines.filter(l => /action:|will|should|need to|assigned|complete|fix|review/i.test(l)).slice(0, 8).map(l => l.trim());
-      const decisions = lines.filter(l => /decided|agreed|confirmed|approved/i.test(l)).slice(0, 5).map(l => l.trim());
+      // Support both English and Vietnamese keywords for fallback
+      const actionItems = lines.filter(l => /action:|will|should|need to|assigned|complete|fix|review|cần|phải|sẽ|giao cho|hoàn thành|sửa|xem lại|triển khai/i.test(l)).slice(0, 8).map(l => l.trim());
+      const decisions = lines.filter(l => /decided|agreed|confirmed|approved|quyết định|đồng ý|xác nhận|phê duyệt/i.test(l)).slice(0, 5).map(l => l.trim());
       intel = {
         summary: lines.slice(0, 3).join(' ') || `Meeting "${meeting.title}" was processed.`,
         key_takeaways: actionItems.slice(0, 3),

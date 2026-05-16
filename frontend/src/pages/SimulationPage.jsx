@@ -123,7 +123,7 @@ export default function SimulationPage() {
               <div className="card" style={{ background: 'linear-gradient(135deg, rgba(79,142,247,0.08), rgba(124,58,237,0.08))', border: '1px solid rgba(79,142,247,0.2)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                   <div style={{ fontSize: 24 }}>🤖</div>
-                  <div className="card-title">AI Analysis</div>
+                  <div className="card-title">Analysis</div>
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{result.scenario_summary}</div>
                 {result.trade_off_summary && (

@@ -14,9 +14,7 @@ import {
   ListChecks,
   Users,
   Clock,
-  ArrowRight,
   Headphones,
-  UserPlus,
   Search,
   Trash,
   Bell,
@@ -299,7 +297,7 @@ function ProcessMeetingModal({ meeting, onClose, onProcessed }) {
       <div className="modal modal-lg">
         <div className="modal-header">
           <div className="modal-title">
-            🎙️ AI Meeting Intel: {meeting.title}
+            🎙️ Meeting Review: {meeting.title}
           </div>
           <button className="btn btn-ghost btn-icon" onClick={onClose}>
             <X size={18} />
@@ -347,7 +345,7 @@ function ProcessMeetingModal({ meeting, onClose, onProcessed }) {
                   marginBottom: 8,
                 }}
               >
-                Automated speaker recognition & diarization using Azure AI
+                Automated speaker recognition & diarization using automation
                 Speech.
               </div>
               <label
@@ -376,7 +374,7 @@ function ProcessMeetingModal({ meeting, onClose, onProcessed }) {
               className="textarea"
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
-              placeholder="Paste transcript here OR let AI simulate voice-to-text diarization."
+              placeholder="Paste transcript here OR simulate voice-to-text diarization."
               style={{ minHeight: 250, fontFamily: "monospace" }}
             />
           </div>
@@ -390,7 +388,7 @@ function ProcessMeetingModal({ meeting, onClose, onProcessed }) {
             }}
           >
             <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-              <strong>AI Intelligence Layer</strong> will summarize the
+              <strong>Analysis layer</strong> will summarize the
               conversation, extract decisions, propose a 5-step next plan, and
               suggest the most logical follow-up meeting date.
             </div>
@@ -402,7 +400,7 @@ function ProcessMeetingModal({ meeting, onClose, onProcessed }) {
             disabled={loading || (!transcript.trim() && !useVoiceAi)}
           >
             {loading
-              ? "AI analyzing voices & context..."
+              ? "Analyzing voices & context..."
               : "Extract Full Meeting Intel"}
           </button>
         </div>
@@ -1126,7 +1124,7 @@ export default function MeetingsPage() {
                         </button>
                         <button
                           className="btn btn-ghost btn-icon"
-                          title="View Full AI Report"
+                          title="View Full Report"
                         >
                           <Brain size={16} />
                         </button>
@@ -1219,7 +1217,7 @@ export default function MeetingsPage() {
                 />
                 <div className="empty-state-title">No meetings scheduled</div>
                 <div className="empty-state-desc">
-                  Schedule a meeting or import past notes to get AI-extracted
+                  Schedule a meeting or import past notes to get extracted
                   action items.
                 </div>
                 <button

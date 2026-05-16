@@ -90,6 +90,8 @@ async function initializeDatabase() {
         end_date DATE,
         baseline_end_date DATE,
         owner_id TEXT REFERENCES users(id),
+        region TEXT,
+        contract_type TEXT,
         risk_score NUMERIC DEFAULT 0,
         health_score NUMERIC DEFAULT 100,
         metadata JSONB DEFAULT '{}',
@@ -103,7 +105,7 @@ async function initializeDatabase() {
         project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
         title TEXT NOT NULL,
         description TEXT,
-        status TEXT DEFAULT 'todo' CHECK(status IN ('todo','in_progress','blocked','review','done','cancelled')),
+        status TEXT DEFAULT 'todo' CHECK(status IN ('todo','not_started','in_progress','blocked','review','done','cancelled')),
         priority TEXT DEFAULT 'medium' CHECK(priority IN ('critical','high','medium','low')),
         owner_id TEXT REFERENCES users(id),
         due_date DATE,
@@ -112,6 +114,7 @@ async function initializeDatabase() {
         estimated_hours NUMERIC DEFAULT 0,
         actual_hours NUMERIC DEFAULT 0,
         completion_pct INTEGER DEFAULT 0,
+        discipline TEXT,
         dependencies JSONB DEFAULT '[]',
         tags JSONB DEFAULT '[]',
         risk_score NUMERIC DEFAULT 0,
@@ -331,6 +334,15 @@ async function initializeDatabase() {
       ALTER TABLE messages ADD COLUMN IF NOT EXISTS file_url TEXT;
       ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to JSONB;
 
+      -- Migrations for dataset matching
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS region TEXT;
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS contract_type TEXT;
+      ALTER TABLE tasks ADD COLUMN IF NOT EXISTS discipline TEXT;
+      
+      -- Update constraints
+      ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_status_check;
+      ALTER TABLE tasks ADD CONSTRAINT tasks_status_check CHECK (status IN ('todo','not_started','in_progress','blocked','review','done','cancelled'));
+
       -- Global Audit Log
       CREATE TABLE IF NOT EXISTS audit_logs (
         id TEXT PRIMARY KEY,
@@ -358,7 +370,35 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_friendships_users ON friendships(user_id1, user_id2);
     `);
 
-    console.log('✅ PostgreSQL schema initialized');
+    // Power BI Views
+    await client.query(`
+      CREATE OR REPLACE VIEW pbi_project_health AS
+      SELECT 
+          p.id as project_id, p.name as project_name, p.status as project_status,
+          p.risk_score, p.health_score, p.start_date, p.end_date, p.baseline_end_date,
+          (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id) as total_tasks,
+          (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'done') as completed_tasks,
+          (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'blocked') as blocked_tasks,
+          u.name as project_manager
+      FROM projects p
+      LEFT JOIN users u ON p.owner_id = u.id;
+
+      CREATE OR REPLACE VIEW pbi_task_velocity AS
+      SELECT 
+          t.project_id, p.name as project_name, t.status, t.priority, t.owner_id,
+          u.name as owner_name, t.due_date, t.baseline_due_date, t.completion_pct, t.is_critical_path,
+          CASE 
+              WHEN t.due_date < NOW() AND t.status != 'done' THEN 'Overdue'
+              WHEN t.status = 'blocked' THEN 'Blocked'
+              WHEN t.status = 'done' THEN 'Completed'
+              ELSE 'On Track'
+          END as status_category
+      FROM tasks t
+      JOIN projects p ON t.project_id = p.id
+      LEFT JOIN users u ON t.owner_id = u.id;
+    `);
+
+    console.log('✅ PostgreSQL schema and views initialized');
   } finally {
     client.release();
   }

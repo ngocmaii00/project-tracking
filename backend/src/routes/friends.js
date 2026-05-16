@@ -152,6 +152,20 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 // Get pending requests
+router.get('/requests', authenticate, async (req, res) => {
+  try {
+    const requests = await query(`
+      SELECT u.id, u.name, u.email, u.avatar, f.created_at
+      FROM friendships f
+      JOIN users u ON f.user_id1 = u.id
+      WHERE f.user_id2 = $1 AND f.status = 'pending'
+    `, [req.user.id]);
+    res.json(requests);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/pending', authenticate, async (req, res) => {
   try {
     const requests = await query(`

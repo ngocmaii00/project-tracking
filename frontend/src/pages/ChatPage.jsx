@@ -22,7 +22,9 @@ import {
   MessageSquare,
   ChevronRight,
   Mic,
+  MicOff,
   Video,
+  VideoOff,
   PhoneCall,
   Pin,
   Reply,
@@ -38,6 +40,7 @@ import {
   User,
   Palette,
   Camera,
+  Command,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import useStore from "../store/useStore";
@@ -135,54 +138,111 @@ function SettingsModal({ user, onClose }) {
   );
 }
 
-function CallModal({ activeConversation, type, status, seconds, onClose, peer }) {
+function CallModal({
+  activeConversation,
+  type,
+  status,
+  seconds,
+  onClose,
+  peer,
+  remoteStream,
+  isMuted,
+  isVideoOff,
+  onToggleMic,
+  onToggleVideo,
+}) {
   const peerName = peer?.name || activeConversation.name || "Người dùng CWB";
   const peerAvatar = peer?.avatar;
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && remoteStream) {
+      videoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   return (
     <div className="cwb-call-overlay">
       <div className="cwb-call-content">
-        <div className="call-avatar-pulse">
-          <div
-            className="call-avatar"
-            style={{
-              overflow: "hidden",
-              background: `hsl(${peerName.charCodeAt(0) * 40}, 60%, 40%)`,
-            }}
-          >
-            {peerAvatar ? (
-              <img
-                src={getAvatar(peerAvatar)}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              peerName[0]
+        {type === "video" && remoteStream ? (
+          <div className="call-video-container">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="remote-video-full"
+            />
+            <div className="call-video-overlay">
+              <h2>{peerName}</h2>
+              <p>
+                {status === "active"
+                  ? "Đang đàm thoại video"
+                  : "Đang kết nối..."}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="call-avatar-pulse">
+              <div
+                className="call-avatar"
+                style={{
+                  overflow: "hidden",
+                  background: `hsl(${peerName.charCodeAt(0) * 40}, 60%, 40%)`,
+                }}
+              >
+                {peerAvatar ? (
+                  <img
+                    src={getAvatar(peerAvatar)}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  peerName[0]
+                )}
+              </div>
+            </div>
+
+            <h2 style={{ color: "white", marginTop: 20 }}>{peerName}</h2>
+            <p style={{ color: "#94a3b8" }}>
+              {status === "active" ? "Đang đàm thoại" : "Đang đổ chuông..."}
+            </p>
+            {status === "active" && (
+              <div
+                className="call-timer"
+                style={{ fontSize: 24, fontWeight: 700, margin: "10px 0" }}
+              >
+                {Math.floor(seconds / 60)}:
+                {(seconds % 60).toString().padStart(2, "0")}
+              </div>
             )}
-          </div>
-        </div>
-        <h2 style={{ color: "white", marginTop: 20 }}>{peerName}</h2>
-        <p style={{ color: "#94a3b8" }}>
-          {status === "active" ? "Đang đàm thoại" : "Đang đổ chuông..."}
-        </p>
-        {status === "active" && (
-          <div
-            className="call-timer"
-            style={{ fontSize: 24, fontWeight: 700, margin: "10px 0" }}
-          >
-            {Math.floor(seconds / 60)}:
-            {(seconds % 60).toString().padStart(2, "0")}
-          </div>
+          </>
         )}
 
         <div className="call-actions">
-          <button className="call-btn-circle mic">
-            <Mic size={20} />
+          <button
+            className={`call-btn-circle mic ${isMuted ? "active-red" : ""}`}
+            onClick={onToggleMic}
+            title={isMuted ? "Bật Mic" : "Tắt Mic"}
+          >
+            {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
           </button>
-          <button className="call-btn-circle video">
-            <Video size={20} />
+          <button
+            className={`call-btn-circle video ${isVideoOff ? "active-red" : ""}`}
+            onClick={onToggleVideo}
+            title={isVideoOff ? "Bật Camera" : "Tắt Camera"}
+          >
+            {isVideoOff ? <VideoOff size={20} /> : <Video size={20} />}
           </button>
-          <button className="call-btn-circle end" onClick={onClose}>
+          <button
+            className="call-btn-circle end"
+            onClick={onClose}
+            title="Kết thúc"
+          >
             <LogOut size={20} style={{ transform: "rotate(135deg)" }} />
           </button>
           <button className="call-btn-circle speaker">
@@ -546,7 +606,7 @@ function AIDeadlinePanel({ userId, onClose }) {
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "white" }}>
-              CWB AI Assistant
+              CWB Planning Assistant
             </div>
             <div style={{ fontSize: 10, color: "#64748b" }}>
               Deadline Tracker
@@ -867,22 +927,32 @@ function MessageItem({
             </div>
           )}
           {(() => {
-            const mType = (msg.type === "chat_message" ? msg.msgType : msg.type) || "text";
-            
+            const mType =
+              (msg.type === "chat_message" ? msg.msgType : msg.type) || "text";
+
             if (mType === "image") {
               return (
                 <div className="msg-image-attachment">
-                  <img 
-                    src={getAvatar(msg.fileUrl)} 
-                    alt={msg.content} 
-                    style={{ maxWidth: '100%', borderRadius: 12, cursor: 'pointer', display: 'block' }}
-                    onClick={() => window.open(getAvatar(msg.fileUrl), '_blank')}
+                  <img
+                    src={getAvatar(msg.fileUrl)}
+                    alt={msg.content}
+                    style={{
+                      maxWidth: "100%",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      display: "block",
+                    }}
+                    onClick={() =>
+                      window.open(getAvatar(msg.fileUrl), "_blank")
+                    }
                   />
-                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>{msg.content}</div>
+                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>
+                    {msg.content}
+                  </div>
                 </div>
               );
             }
-            
+
             if (mType === "file") {
               return (
                 <div className="file-attachment">
@@ -904,7 +974,7 @@ function MessageItem({
                 </div>
               );
             }
-            
+
             return (
               <span
                 className="msg-text-v2"
@@ -1164,6 +1234,19 @@ export default function ChatPage() {
   const [viewMessages, setViewMessages] = useState([]);
   const [incomingCall, setIncomingCall] = useState(null); // { senderId, senderName, type }
   const [callSeconds, setCallSeconds] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+
+  // WebRTC States
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const pcRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
+
+  const ICE_SERVERS = {
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  };
 
   useEffect(() => {
     let interval;
@@ -1174,6 +1257,21 @@ export default function ChatPage() {
     }
     return () => clearInterval(interval);
   }, [activeCall?.status]);
+
+  // Update PC tracks when local stream changes (mute/unmute/video toggle)
+  useEffect(() => {
+    if (pcRef.current && localStream) {
+      const senders = pcRef.current.getSenders();
+      localStream.getTracks().forEach((track) => {
+        const sender = senders.find((s) => s.track?.kind === track.kind);
+        if (sender) {
+          sender.replaceTrack(track);
+        } else {
+          pcRef.current.addTrack(track, localStream);
+        }
+      });
+    }
+  }, [localStream]);
 
   const scrollRef = useRef(null);
   const wsRef = useRef(null);
@@ -1188,6 +1286,25 @@ export default function ChatPage() {
   }, [isUploading]);
 
   const [promptModal, setPromptModal] = useState(null); // { title, description, value, onSubmit, placeholder, danger, confirmText }
+
+  const loadInitialData = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const [convsRes, friendsRes, reqsRes] = await Promise.all([
+        api.get("/chat/conversations"),
+        api.get("/friends"),
+        api.get("/friends/requests"),
+      ]);
+      setConversations(convsRes.data || []);
+      setFriends(friendsRes.data || []);
+      setFriendRequests(reqsRes.data || []);
+    } catch (err) {
+      console.error("Failed to load initial data", err);
+      toast.error("Không thể tải dữ liệu tin nhắn");
+    } finally {
+      setIsInitialLoading(false);
+    }
+  }, [user?.id]);
 
   const activeConvIdRef = useRef(activeConversationId);
   useEffect(() => {
@@ -1234,8 +1351,11 @@ export default function ChatPage() {
               const conv = prev[index];
               const updated = {
                 ...conv,
-                last_message:
-                  ["file", "image"].includes(msg.msgType || msg.type) ? `📄 ${msg.content}` : msg.content,
+                last_message: ["file", "image"].includes(
+                  msg.msgType || msg.type,
+                )
+                  ? `📄 ${msg.content}`
+                  : msg.content,
                 last_message_at: msg.createdAt || new Date().toISOString(),
                 unread_count:
                   msg.conversationId !== activeConvIdRef.current &&
@@ -1284,10 +1404,14 @@ export default function ChatPage() {
             } else if (msg.event === "rejected") {
               toast.error(`${msg.senderName} rejected the call`);
               setActiveCall(null);
+              stopMedia();
             } else if (msg.event === "hangup") {
               toast("Call ended", { icon: "📞" });
               setActiveCall(null);
               setIncomingCall(null);
+              stopMedia();
+            } else if (msg.event === "webrtc_signal") {
+              handleWebRTCSignal(msg.signal, msg.senderId);
             }
           } else if (msg.type === "friend_request") {
             loadInitialData(); // Refresh requests list
@@ -1330,7 +1454,7 @@ export default function ChatPage() {
       });
 
       const isImage = file.type.startsWith("image/");
-      
+
       // Send file message via WebSocket
       wsRef.current.send(
         JSON.stringify({
@@ -1373,82 +1497,217 @@ export default function ChatPage() {
     );
   };
 
-  const loadInitialData = useCallback(async () => {
-    try {
-      setIsInitialLoading(true);
-      const [convRes, friendsRes, requestsRes] = await Promise.all([
-        api.get("/chat/conversations"),
-        api.get("/friends"),
-        api.get("/friends/pending"),
-      ]);
-      setConversations(convRes.data || []);
-      setFriends(friendsRes.data || []);
-      setFriendRequests(requestsRes.data || []);
+  // WebRTC Implementation
+  const stopMedia = () => {
+    if (localStream) {
+      localStream.getTracks().forEach((t) => t.stop());
+      setLocalStream(null);
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    setRemoteStream(null);
+  };
 
-      // Select first conversation by default if none selected
-      if (!activeConversationId && convRes.data?.length > 0) {
-        setActiveConversationId(convRes.data[0].id);
+  const createPeerConnection = (targetId) => {
+    if (pcRef.current) pcRef.current.close();
+    const pc = new RTCPeerConnection(ICE_SERVERS);
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        wsRef.current.send(
+          JSON.stringify({
+            type: "call_event",
+            event: "webrtc_signal",
+            targetId,
+            signal: { candidate: e.candidate },
+          }),
+        );
+      }
+    };
+
+    pc.ontrack = (e) => {
+      console.log("Remote track received:", e.streams[0]);
+      setRemoteStream(e.streams[0]);
+      if (remoteVideoRef.current)
+        remoteVideoRef.current.srcObject = e.streams[0];
+      if (remoteAudioRef.current)
+        remoteAudioRef.current.srcObject = e.streams[0];
+    };
+
+    pcRef.current = pc;
+    return pc;
+  };
+
+  const handleWebRTCSignal = async (signal, senderId) => {
+    try {
+      if (signal.offer) {
+        const pc = pcRef.current || createPeerConnection(senderId);
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.offer));
+
+        // Add local tracks if not already added
+        if (localStream) {
+          localStream
+            .getTracks()
+            .forEach((track) => pc.addTrack(track, localStream));
+        }
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        wsRef.current.send(
+          JSON.stringify({
+            type: "call_event",
+            event: "webrtc_signal",
+            targetId: senderId,
+            signal: { answer },
+          }),
+        );
+      } else if (signal.answer) {
+        await pcRef.current.setRemoteDescription(
+          new RTCSessionDescription(signal.answer),
+        );
+      } else if (signal.candidate) {
+        await pcRef.current.addIceCandidate(
+          new RTCIceCandidate(signal.candidate),
+        );
       }
     } catch (err) {
-      console.error("Load initial data error", err);
-    } finally {
-      setIsInitialLoading(false);
+      console.error("WebRTC Signal error:", err);
     }
-  }, [activeConversationId]);
+  };
 
   useEffect(() => {
     loadInitialData();
     initWebSocket();
-    return () => wsRef.current?.close();
+    return () => {
+      wsRef.current?.close();
+      stopMedia();
+    };
   }, [initWebSocket, loadInitialData]);
 
-  const initiateCall = (type) => {
+  const initiateCall = async (type) => {
     const otherMember = activeViewConversation.members?.find(
       (m) => m.id !== user.id,
     );
     if (!otherMember) return toast.error("Không tìm thấy người nhận");
 
-    wsRef.current.send(
-      JSON.stringify({
-        type: "call_event",
-        event: "invite",
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: type === "video",
+      });
+      setLocalStream(stream);
+
+      wsRef.current.send(
+        JSON.stringify({
+          type: "call_event",
+          event: "invite",
+          targetId: otherMember.id,
+          callType: type,
+          senderName: user.name,
+          senderAvatar: user.avatar,
+        }),
+      );
+
+      setActiveCall({
+        type,
+        status: "calling",
         targetId: otherMember.id,
-        callType: type,
-        senderName: user.name,
-        senderAvatar: user.avatar,
-      }),
-    );
-    setActiveCall({
-      type,
-      status: "calling",
-      targetId: otherMember.id,
-      peer: { name: otherMember.name, avatar: otherMember.avatar },
-    });
+        peer: { name: otherMember.name, avatar: otherMember.avatar },
+      });
+
+      // Prepare PC
+      const pc = createPeerConnection(otherMember.id);
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      wsRef.current.send(
+        JSON.stringify({
+          type: "call_event",
+          event: "webrtc_signal",
+          targetId: otherMember.id,
+          signal: { offer },
+        }),
+      );
+    } catch (err) {
+      toast.error("Không thể truy cập camera/micro");
+      console.error(err);
+    }
   };
 
-  const respondToCall = (action) => {
+  const respondToCall = async (action) => {
     if (!incomingCall) return;
-    wsRef.current.send(
-      JSON.stringify({
-        type: "call_event",
-        event: action === "accepted" ? "accepted" : "rejected",
-        targetId: incomingCall.senderId,
-        senderName: user.name,
-      }),
-    );
+
     if (action === "accepted") {
-      setActiveCall({
-        type: incomingCall.type,
-        status: "active",
-        targetId: incomingCall.senderId,
-        incoming: true,
-        peer: {
-          name: incomingCall.senderName,
-          avatar: incomingCall.senderAvatar,
-        },
-      });
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: incomingCall.type === "video",
+        });
+        setLocalStream(stream);
+
+        wsRef.current.send(
+          JSON.stringify({
+            type: "call_event",
+            event: "accepted",
+            targetId: incomingCall.senderId,
+            senderName: user.name,
+          }),
+        );
+
+        setActiveCall({
+          type: incomingCall.type,
+          status: "active",
+          targetId: incomingCall.senderId,
+          incoming: true,
+          peer: {
+            name: incomingCall.senderName,
+            avatar: incomingCall.senderAvatar,
+          },
+        });
+
+        // PC will be created when receiving the offer (which should come right after accept or even before)
+        // Actually, in many implementations, the offer is sent WITH the invite.
+        // But here we wait for the offer.
+      } catch (err) {
+        toast.error("Không thể truy cập camera/micro");
+        console.error(err);
+        return;
+      }
+    } else {
+      wsRef.current.send(
+        JSON.stringify({
+          type: "call_event",
+          event: "rejected",
+          targetId: incomingCall.senderId,
+          senderName: user.name,
+        }),
+      );
     }
     setIncomingCall(null);
+  };
+
+  const toggleCallMic = () => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  const toggleCallVideo = () => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoOff(!videoTrack.enabled);
+      }
+    }
   };
 
   const hangupCall = () => {
@@ -1465,6 +1724,7 @@ export default function ChatPage() {
     }
     setActiveCall(null);
     setIncomingCall(null);
+    stopMedia();
   };
 
   useEffect(() => {
@@ -1507,7 +1767,7 @@ export default function ChatPage() {
         if (scrollRef.current) {
           scrollRef.current.scrollTo({
             top: scrollRef.current.scrollHeight,
-            behavior: "smooth" // smooth scroll looks better!
+            behavior: "smooth", // smooth scroll looks better!
           });
         }
       }, 50);
@@ -1521,6 +1781,8 @@ export default function ChatPage() {
       setSearchResults(data);
     } catch (err) {
       console.error("Search error", err);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -1540,7 +1802,9 @@ export default function ChatPage() {
     try {
       await api.post("/friends/respond", { friendId, action });
       toast.success(
-        action === "accepted" ? "Accepted friend request" : "Rejected friend request",
+        action === "accepted"
+          ? "Accepted friend request"
+          : "Rejected friend request",
       );
       loadInitialData();
     } catch (err) {
@@ -1706,6 +1970,15 @@ export default function ChatPage() {
 
   return (
     <div className="cwb-chat">
+      {/* Hidden WebRTC Audio/Video elements */}
+      <video
+        ref={remoteVideoRef}
+        autoPlay
+        playsInline
+        style={{ display: "none" }}
+      />
+      <audio ref={remoteAudioRef} autoPlay style={{ display: "none" }} />
+
       {/* ── Sidebar ── */}
       <aside className="cwb-sidebar">
         <div className="cwb-ws-header">
@@ -1786,7 +2059,12 @@ export default function ChatPage() {
                   }}
                 >
                   {u.avatar ? (
-                    <img src={getAvatar(u.avatar)} width={36} height={36} style={{ borderRadius: '8px' }} />
+                    <img
+                      src={getAvatar(u.avatar)}
+                      width={36}
+                      height={36}
+                      style={{ borderRadius: "8px" }}
+                    />
                   ) : (
                     u.name[0]
                   )}
@@ -1939,9 +2217,9 @@ export default function ChatPage() {
                       : null;
                   const displayName =
                     conv.type === "dm"
-                      ? otherMember?.name || "Unknown"
-                      : conv.name || "Group";
-                  const avatarColor = `hsl(${(displayName || "X").charCodeAt(0) * 40}, 60%, 40%)`;
+                      ? otherMember?.name || "Người dùng"
+                      : conv.name || "Nhóm";
+                  const avatarColor = `hsl(${(displayName || "?").charCodeAt(0) * 40}, 60%, 40%)`;
 
                   return (
                     <motion.div
@@ -2075,7 +2353,7 @@ export default function ChatPage() {
       {/* ── Main ── */}
       <main className="cwb-main" style={{ position: "relative" }}>
         {/* CHAT AREA LOADING - KHÓA RIÊNG KHU VỰC CHAT ĐỂ TRÁNH NHÁY */}
-        <div className={`cwb-chat-lockdown ${messagesLoading ? 'active' : ''}`}>
+        <div className={`cwb-chat-lockdown ${messagesLoading ? "active" : ""}`}>
           <div className="cwb-lock-content">
             <div className="cwb-loading-spinner-premium" />
             <div className="cwb-lock-text">ĐANG KẾT NỐI...</div>
@@ -2153,7 +2431,7 @@ export default function ChatPage() {
             <button
               className={`cwb-icon-btn ${showAIPanel ? "active" : ""}`}
               onClick={() => setShowAIPanel(!showAIPanel)}
-              title="AI Assistant"
+              title="Planning Assistant"
             >
               <Bot size={17} />
             </button>
@@ -2196,9 +2474,7 @@ export default function ChatPage() {
                     size={48}
                     style={{ margin: "0 auto 16px", color: "#6366f1" }}
                   />
-                  <p style={{ fontSize: 13 }}>
-                    Select a conversation to start
-                  </p>
+                  <p style={{ fontSize: 13 }}>Select a conversation to start</p>
                 </div>
               </div>
             ) : (
@@ -2490,8 +2766,7 @@ export default function ChatPage() {
                     onClick={() => {
                       setPromptModal({
                         title: "Rename Group",
-                        description:
-                          "Enter the new name for this group chat.",
+                        description: "Enter the new name for this group chat.",
                         value: activeViewConversation.name,
                         confirmText: "Save Changes",
                         onSubmit: (val) =>
@@ -2580,28 +2855,33 @@ export default function ChatPage() {
           seconds={callSeconds}
           onClose={hangupCall}
           peer={activeCall.peer}
+          remoteStream={remoteStream}
+          isMuted={isMuted}
+          isVideoOff={isVideoOff}
+          onToggleMic={toggleCallMic}
+          onToggleVideo={toggleCallVideo}
         />
       )}
 
       <style>{`
         /* ─── Profile Modal ─── */
-        .cwb-modal-content.profile { width: 340px; padding: 0; border: none; }
-        .profile-banner { height: 100px; width: 100%; }
+        .cwb-modal-content.profile { width: 340px; padding: 0; border: none; background: var(--bg-card); box-shadow: var(--shadow-float); }
+        .profile-banner { height: 100px; width: 100%; border-radius: 16px 16px 0 0; }
         .profile-body { padding: 20px; position: relative; }
-        .profile-avatar-wrap { position: absolute; top: -45px; left: 20px; border: 4px solid #111827; border-radius: 20px; }
+        .profile-avatar-wrap { position: absolute; top: -45px; left: 20px; border: 4px solid var(--bg-card); border-radius: 20px; }
         .profile-avatar { width: 80px; height: 80px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: white; overflow: hidden; }
         .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .profile-info { margin-top: 45px; }
-        .profile-name { font-size: 20px; font-weight: 800; color: white; margin-bottom: 4px; }
-        .profile-email { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+        .profile-name { font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+        .profile-email { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
         .profile-badges { display: flex; gap: 8px; margin-bottom: 24px; }
-        .profile-badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: rgba(255,255,255,0.05); color: #94a3b8; }
+        .profile-badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: var(--border); color: var(--text-secondary); }
         .profile-badge.online { background: rgba(16,185,129,0.1); color: #10b981; }
         .profile-actions { display: flex; gap: 10px; }
         .profile-btn { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; }
-        .profile-btn.primary { background: #6366f1; color: white; }
-        .profile-btn.primary:hover { background: #4f46e5; }
-        .profile-btn.ghost { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+        .profile-btn.primary { background: var(--primary); color: white; }
+        .profile-btn.primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        .profile-btn.ghost { background: var(--border); color: var(--text-primary); }
         .profile-btn.ghost:hover { background: rgba(255,255,255,0.08); }
 
         .cwb-unread-dot {
@@ -2614,18 +2894,18 @@ export default function ChatPage() {
         .cwb-chat {
           display: flex;
           height: calc(100vh - 64px);
-          background: #080d1a;
+          background: var(--bg-base);
           margin: -28px -32px;
           overflow: hidden;
           font-family: 'Inter', sans-serif;
-          color: #e2e8f0;
+          color: var(--text-primary);
         }
 
         /* ─── Sidebar ─── */
         .cwb-sidebar {
           width: 270px;
-          background: #060b18;
-          border-right: 1px solid rgba(255,255,255,0.04);
+          background: var(--bg-surface);
+          border-right: 1px solid var(--border);
           display: flex;
           flex-direction: column;
           flex-shrink: 0;
@@ -2635,11 +2915,11 @@ export default function ChatPage() {
         .search-results-overlay {
           position: absolute;
           top: 110px; left: 12px; right: 12px;
-          background: #111827;
-          border: 1px solid rgba(255,255,255,0.1);
+          background: var(--bg-card);
+          border: 1px solid var(--border);
           border-radius: 12px;
           z-index: 100;
-          box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+          box-shadow: var(--shadow-float);
           max-height: 420px;
           overflow-y: auto;
           display: flex;
@@ -2649,9 +2929,9 @@ export default function ChatPage() {
           position: sticky;
           top: 0;
           display: flex; align-items: center; justify-content: space-between;
-          padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.05);
-          font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;
-          background: rgba(255,255,255,0.02);
+          padding: 10px 14px; border-bottom: 1px solid var(--border);
+          font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+          background: var(--bg-card);
         }
         .search-overlay-header button {
           background: none; border: none; color: #475569; cursor: pointer;
@@ -2754,18 +3034,19 @@ export default function ChatPage() {
           border-radius: 0;
           text-align: left;
         }
-        .cwb-ch-btn:hover { background: rgba(255,255,255,0.04); color: #94a3b8; }
+        .cwb-ch-btn:hover { background: var(--bg-card-hover); color: var(--text-secondary); }
         .cwb-ch-btn.active {
-          background: rgba(79,142,247,0.08);
-          color: #7eb8ff;
+          background: var(--primary-glow);
+          color: var(--primary);
           font-weight: 600;
         }
         .cwb-ch-btn.active::before {
           content: '';
           position: absolute; left: 0; top: 0; bottom: 0;
-          width: 2px;
-          background: #4f8ef7;
-          border-radius: 0 2px 2px 0;
+          width: 3px;
+          background: var(--primary);
+          border-radius: 0 4px 4px 0;
+          box-shadow: 2px 0 10px var(--primary-glow);
         }
         .cwb-ch-btn.dm { font-size: 13px; }
 
@@ -2775,7 +3056,7 @@ export default function ChatPage() {
           font-size: 9px; font-weight: 700;
           background: #ef4444; color: white;
         }
-        .cwb-badge.ai { background: rgba(99,102,241,0.2); color: #818cf8; }
+        .cwb-badge.ai { background: var(--accent-glow); color: var(--accent); border: 1px solid var(--accent); }
 
         .cwb-online-dot {
           width: 7px; height: 7px;
@@ -2814,13 +3095,13 @@ export default function ChatPage() {
         .cwb-conn-indicator {
           padding: 4px 12px;
           display: flex; align-items: center; gap: 6px;
-          font-size: 10px; color: #475569;
+          font-size: 10px; color: var(--text-muted);
         }
         .cwb-conn-dot {
           width: 6px; height: 6px; border-radius: 50%;
-          background: #475569;
+          background: var(--text-muted);
         }
-        .cwb-conn-dot.on { background: #10b981; }
+        .cwb-conn-dot.on { background: #10b981; box-shadow: 0 0 5px #10b981; }
         .cwb-conn-indicator.on { color: #10b981; }
 
         .cwb-sidebar-footer {
@@ -2854,7 +3135,7 @@ export default function ChatPage() {
           flex: 1;
           display: flex;
           flex-direction: column;
-          background: #0a101f;
+          background: var(--bg-base);
           min-width: 0;
         }
 
@@ -2864,15 +3145,15 @@ export default function ChatPage() {
           align-items: center;
           justify-content: space-between;
           padding: 0 20px;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          background: rgba(10,16,31,0.9);
+          border-bottom: 1px solid var(--border);
+          background: rgba(9, 14, 26, 0.85);
           backdrop-filter: blur(12px);
           flex-shrink: 0;
           z-index: 10;
         }
         .cwb-header-left { display: flex; align-items: center; gap: 12px; }
-        .cwb-channel-name { font-size: 15px; font-weight: 800; color: white; margin: 0; }
-        .cwb-channel-desc { font-size: 11px; color: #475569; margin: 0; }
+        .cwb-channel-name { font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0; }
+        .cwb-channel-desc { font-size: 11px; color: var(--text-muted); margin: 0; }
 
         .cwb-header-right { display: flex; align-items: center; gap: 6px; }
         .cwb-search-pill {
@@ -2977,29 +3258,29 @@ export default function ChatPage() {
         .msg-bubble-v2 {
           display: inline-block;
           padding: 8px 14px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.04);
+          background: var(--bg-elevated);
+          border: 1px solid var(--border);
           border-radius: 4px 14px 14px 14px;
           max-width: 85%;
           transition: 0.2s;
         }
         .is-me .msg-bubble-v2 {
-          background: #6366f1;
-          background: linear-gradient(135deg, #6366f1, #4f46e5);
+          background: var(--primary);
+          background: linear-gradient(135deg, var(--primary), var(--primary-dark));
           color: white;
           border-radius: 14px 14px 4px 14px;
           border: none;
-          box-shadow: 0 4px 15px rgba(99,102,241,0.25);
+          box-shadow: 0 4px 15px var(--primary-glow);
         }
-        .msg-bubble-v2:hover { border-color: rgba(255,255,255,0.07); }
-        .is-me .msg-bubble-v2:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.3); }
+        .msg-bubble-v2:hover { border-color: var(--border-active); }
+        .is-me .msg-bubble-v2:hover { transform: translateY(-1px); box-shadow: 0 6px 20px var(--primary-glow); }
         .is-me .msg-text-v2 { color: white; }
         .ai-bubble {
-          background: rgba(79,142,247,0.04);
-          border-color: rgba(79,142,247,0.1);
+          background: var(--accent-glow);
+          border-color: var(--accent);
           border-radius: 4px 12px 12px 12px;
         }
-        .msg-text-v2 { font-size: 14px; color: #cbd5e1; line-height: 1.65; word-wrap: break-word; white-space: pre-wrap; }
+        .msg-text-v2 { font-size: 14px; color: var(--text-primary); line-height: 1.65; word-wrap: break-word; white-space: pre-wrap; }
 
         .reply-preview {
           display: flex; gap: 8px;
@@ -3095,28 +3376,28 @@ export default function ChatPage() {
         .cwb-reply-text { color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .cwb-input-box {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--bg-input);
+          border: 1px solid var(--border);
           border-radius: 12px;
           overflow: hidden;
           transition: border-color 0.2s;
         }
-        .cwb-input-box:focus-within { border-color: rgba(79,142,247,0.25); }
+        .cwb-input-box:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); }
 
         .cwb-toolbar {
           padding: 6px 12px;
           display: flex; align-items: center; gap: 4px;
-          border-bottom: 1px solid rgba(255,255,255,0.03);
+          border-bottom: 1px solid var(--border);
           background: rgba(0,0,0,0.1);
         }
         .cwb-tool {
           width: 26px; height: 26px; border-radius: 6px;
-          border: none; background: none; color: #475569;
+          border: none; background: none; color: var(--text-muted);
           display: flex; align-items: center; justify-content: center;
           cursor: pointer; transition: 0.15s;
         }
-        .cwb-tool:hover { background: rgba(255,255,255,0.05); color: #94a3b8; }
-        .cwb-tool-sep { width: 1px; height: 16px; background: rgba(255,255,255,0.04); margin: 0 2px; }
+        .cwb-tool:hover { background: var(--border); color: var(--text-secondary); }
+        .cwb-tool-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; }
 
         .cwb-input-form {
           display: flex; align-items: flex-end; gap: 8px;
@@ -3126,27 +3407,27 @@ export default function ChatPage() {
         .cwb-textarea {
           flex: 1;
           background: none; border: none; outline: none;
-          color: #e2e8f0; font-size: 14px;
+          color: var(--text-primary); font-size: 14px;
           font-family: 'Inter', sans-serif;
           line-height: 1.5;
           resize: none;
           max-height: 120px;
           overflow-y: auto;
         }
-        .cwb-textarea::placeholder { color: #334155; }
+        .cwb-textarea::placeholder { color: var(--text-muted); opacity: 0.5; }
         .cwb-send-btn {
           width: 32px; height: 32px; border-radius: 8px;
-          border: none; background: rgba(255,255,255,0.06);
-          color: #475569; cursor: pointer;
+          border: none; background: var(--border);
+          color: var(--text-muted); cursor: pointer;
           display: flex; align-items: center; justify-content: center;
           transition: 0.2s; flex-shrink: 0;
         }
         .cwb-send-btn.active {
-          background: linear-gradient(135deg, #4f8ef7, #7c3aed);
+          background: linear-gradient(135deg, var(--primary), var(--accent));
           color: white;
-          box-shadow: 0 6px 20px rgba(79,142,247,0.35);
+          box-shadow: 0 6px 20px var(--primary-glow);
         }
-        .cwb-send-btn.active:hover { transform: scale(1.05); }
+        .cwb-send-btn.active:hover { transform: scale(1.05) rotate(-5deg); }
 
         .cwb-input-hint {
           padding: 4px 12px 6px;
@@ -3163,8 +3444,8 @@ export default function ChatPage() {
         /* ─── Right Panels ─── */
         .cwb-right-panel {
           width: 300px;
-          background: #060b18;
-          border-left: 1px solid rgba(255,255,255,0.04);
+          background: var(--bg-surface);
+          border-left: 1px solid var(--border);
           flex-shrink: 0;
           overflow-y: auto;
         }
@@ -3173,25 +3454,25 @@ export default function ChatPage() {
         .ai-panel-header {
           padding: 14px 16px;
           display: flex; align-items: center; justify-content: space-between;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
+          border-bottom: 1px solid var(--border);
           flex-shrink: 0;
           background: rgba(255,255,255,0.01);
         }
         .ai-avatar-glow {
           width: 30px; height: 30px; border-radius: 8px;
-          background: linear-gradient(135deg, #4f46e5, #7c3aed);
+          background: linear-gradient(135deg, var(--primary), var(--accent));
           display: flex; align-items: center; justify-content: center;
           color: white;
-          box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+          box-shadow: 0 4px 12px var(--primary-glow);
         }
         .c-icon-btn {
           width: 26px; height: 26px; border-radius: 6px;
-          border: none; background: rgba(255,255,255,0.04);
-          color: #64748b; cursor: pointer;
+          border: none; background: var(--border);
+          color: var(--text-muted); cursor: pointer;
           display: flex; align-items: center; justify-content: center;
           transition: 0.15s;
         }
-        .c-icon-btn:hover { background: rgba(255,255,255,0.08); color: #94a3b8; }
+        .c-icon-btn:hover { background: var(--border-active); color: var(--text-primary); }
 
         .ai-panel-body { padding: 14px; flex: 1; overflow-y: auto; }
 
@@ -3200,34 +3481,40 @@ export default function ChatPage() {
         }
         .ai-dot {
           width: 7px; height: 7px; border-radius: 50%;
-          background: #4f8ef7;
+          background: var(--primary);
           animation: aiDotAnim 1.4s ease-in-out infinite;
         }
         .ai-dot:nth-child(2) { animation-delay: 0.2s; }
         .ai-dot:nth-child(3) { animation-delay: 0.4s; }
         @keyframes aiDotAnim {
           0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-          40% { transform: scale(1); opacity: 1; }
+          40% { transform: scale(1); opacity: 1; box-shadow: 0 0 8px var(--primary); }
         }
 
         .ai-insight-box {
           display: flex; align-items: flex-start; gap: 8px;
           padding: 10px 12px;
-          background: rgba(245,158,11,0.05);
-          border: 1px solid rgba(245,158,11,0.12);
+          background: var(--accent-glow);
+          border: 1px solid var(--accent);
           border-radius: 10px;
-          font-size: 12px; color: #94a3b8;
+          font-size: 12px; color: var(--text-secondary);
           line-height: 1.5; margin-bottom: 12px;
         }
 
 
         .deadline-card {
-          padding: 10px 12px;
-          border-radius: 10px;
-          border: 1px solid transparent;
-          transition: 0.2s;
+          padding: 12px;
+          border-radius: 12px;
+          border: 1px solid var(--border);
+          background: var(--bg-card);
+          transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          margin-bottom: 8px;
         }
-        .deadline-card:hover { filter: brightness(1.05); }
+        .deadline-card:hover { 
+          transform: translateY(-2px);
+          border-color: var(--border-active);
+          box-shadow: var(--shadow-sm);
+        }
 
         .member-row {
           display: flex; align-items: center; gap: 10px;
@@ -3244,36 +3531,39 @@ export default function ChatPage() {
         }
         .cwb-invite-btn {
           width: 100%; margin-top: 12px;
-          padding: 8px 12px;
+          padding: 10px;
           display: flex; align-items: center; gap: 8px; justify-content: center;
-          border: 1px dashed rgba(255,255,255,0.08);
-          border-radius: 8px; background: none;
-          color: #64748b; font-size: 12px; cursor: pointer;
+          border: 1px dashed var(--border);
+          border-radius: 10px; background: var(--bg-card);
+          color: var(--text-secondary); font-size: 12px; cursor: pointer;
           transition: 0.2s;
         }
-        .cwb-invite-btn:hover { border-color: rgba(79,142,247,0.3); color: #7eb8ff; }
+        .cwb-invite-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-glow); }
 
         /* Scrollbars */
         .cwb-sidebar-scroll::-webkit-scrollbar,
         .cwb-messages::-webkit-scrollbar,
-        .ai-panel-body::-webkit-scrollbar { width: 4px; }
+        .ai-panel-body::-webkit-scrollbar { width: 5px; }
         .cwb-sidebar-scroll::-webkit-scrollbar-track,
         .cwb-messages::-webkit-scrollbar-track,
         .ai-panel-body::-webkit-scrollbar-track { background: transparent; }
         .cwb-sidebar-scroll::-webkit-scrollbar-thumb,
         .cwb-messages::-webkit-scrollbar-thumb,
-        .ai-panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 4px; }
+        .ai-panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        .cwb-sidebar-scroll::-webkit-scrollbar-thumb:hover,
+        .cwb-messages::-webkit-scrollbar-thumb:hover,
+        .ai-panel-body::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
 
         .cwb-panel-btn {
           width: 100%; display: flex; align-items: center; gap: 10px;
-          padding: 8px 12px; background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;
-          color: #94a3b8; font-size: 12px; cursor: pointer; transition: 0.2s;
+          padding: 8px 12px; background: var(--bg-card);
+          border: 1px solid var(--border); border-radius: 8px;
+          color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: 0.2s;
           margin-bottom: 4px;
         }
-        .cwb-panel-btn:hover { background: rgba(255,255,255,0.06); color: white; }
-        .cwb-panel-btn.danger { color: #f87171; border-color: rgba(239, 68, 68, 0.1); }
-        .cwb-panel-btn.danger:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .cwb-panel-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); border-color: var(--border-active); }
+        .cwb-panel-btn.danger { color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
+        .cwb-panel-btn.danger:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: #ef4444; }
 
         /* Modals */
         .cwb-modal-overlay {
@@ -3282,12 +3572,12 @@ export default function ChatPage() {
           backdrop-filter: blur(4px);
         }
         .cwb-modal-content {
-          width: 400px; background: #111827; border-radius: 16px;
-          border: 1px solid rgba(255,255,255,0.1); overflow: hidden;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+          width: 400px; background: var(--bg-card); border-radius: 16px;
+          border: 1px solid var(--border); overflow: hidden;
+          box-shadow: var(--shadow-float);
         }
         .cwb-modal-header {
-          padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05);
+          padding: 16px 20px; border-bottom: 1px solid var(--border);
           display: flex; align-items: center; justify-content: space-between;
           background: rgba(255,255,255,0.01);
         }
@@ -3339,6 +3629,7 @@ export default function ChatPage() {
         .call-btn-circle:hover { transform: scale(1.1); background: rgba(255,255,255,0.2); }
         .call-btn-circle.end { background: #ef4444; }
         .call-btn-circle.end:hover { background: #dc2626; }
+        .call-btn-circle.active-red { background: #ef4444; color: white; }
 
         /* Emoji Picker */
         .cwb-emoji-picker-wrap {
@@ -3375,26 +3666,27 @@ export default function ChatPage() {
         .file-download {
           color: #64748b; transition: 0.2s;
         }
-        /* Chat Loading */
-        .cwb-chat-loading {
-          position: fixed; inset: 0; background: #080d1a;
-          display: flex; align-items: center; justify-content: center;
-          z-index: 9999;
-        }
-        .cwb-loading-box {
-          display: flex; flex-direction: column; align-items: center; gap: 20px;
-        }
-        .cwb-loading-circle {
-          width: 40px; height: 40px; border-radius: 50%;
-          border: 3px solid rgba(99,102,241,0.1);
-          border-top-color: #6366f1;
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .file-download:hover { color: white; transform: translateY(-2px); }
 
-        .file-download:hover { color: #6366f1; }
+        /* Premium Loading */
+        .cwb-chat-lockdown {
+          position: absolute; inset: 0; background: rgba(9, 14, 26, 0.7);
+          backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center;
+          z-index: 100; opacity: 0; pointer-events: none; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .cwb-chat-lockdown.active { opacity: 1; pointer-events: all; }
+        .cwb-lock-content { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .cwb-lock-text { font-size: 11px; font-weight: 800; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px var(--primary-glow); }
+        .cwb-loading-spinner-premium {
+          width: 40px; height: 40px; border: 3px solid var(--primary-glow);
+          border-top-color: var(--primary); border-radius: 50%;
+          animation: spinPremium 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        @keyframes spinPremium { to { transform: rotate(360deg); } }
 
-        /* CHAT AREA LOCKDOWN - CHỈ LOADING KHU VỰC CHAT */
+        .file-download:hover { color: #6366f1; transform: translateY(-2px); }
+
+        /* Premium Loading Overlay */
         .cwb-chat-lockdown {
           position: absolute; inset: 0; 
           background: rgba(8, 13, 26, 0.75);
@@ -3408,7 +3700,7 @@ export default function ChatPage() {
         }
         .cwb-chat-lockdown.active {
           opacity: 1; pointer-events: auto; visibility: visible;
-          transition: none; /* Hiện ra ngay lập tức */
+          transition: none;
         }
         .cwb-lock-content { text-align: center; }
         .cwb-loading-spinner-premium {
@@ -3422,7 +3714,14 @@ export default function ChatPage() {
           color: #6366f1; text-shadow: 0 0 15px rgba(99,102,241,0.5);
         }
 
+        @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        @media (max-width: 768px) {
+          .cwb-sidebar { width: 70px; }
+          .cwb-ws-name span, .cwb-sidebar-search, .cwb-ch-btn span, .cwb-user-info, .cwb-settings-icon { display: none; }
+          .cwb-right-panel { display: none; }
+        }
       `}</style>
     </div>
   );

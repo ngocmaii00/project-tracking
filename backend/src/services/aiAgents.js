@@ -58,6 +58,7 @@ async function runAgent(systemPrompt, userPrompt, jsonMode = true) {
 
 async function extractionAgent(text, sourceType, projectContext) {
   const systemPrompt = `You are an expert project management AI running on Azure AI Foundry. Extract structured task information from ${sourceType} content.
+Support multilingual extraction (English, Vietnamese, Japanese, Korean, etc.). Return summary and descriptions in the same language as the input or in Vietnamese if preferred.
 Return JSON with this exact structure:
 {
   "extracted_tasks": [
@@ -117,11 +118,48 @@ function ruleBasedExtraction(text, sourceType) {
     "create",
     "fix",
     "deploy",
+    "cần",
+    "phải",
+    "sẽ",
+    "giao cho",
+    "hoàn thành",
+    "xong",
+    "triển khai",
+    "phát triển",
+    "xem lại",
+    "cập nhật",
+    "tạo",
+    "sửa",
   ];
   const priorityWords = {
-    critical: ["urgent", "asap", "immediately", "critical", "blocker"],
-    high: ["important", "priority", "soon", "high"],
-    low: ["nice to have", "low", "optional", "later"],
+    critical: [
+      "urgent",
+      "asap",
+      "immediately",
+      "critical",
+      "blocker",
+      "khẩn cấp",
+      "ngay lập tức",
+      "nghiêm trọng",
+    ],
+    high: [
+      "important",
+      "priority",
+      "soon",
+      "high",
+      "quan trọng",
+      "ưu tiên",
+      "cao",
+    ],
+    low: [
+      "nice to have",
+      "low",
+      "optional",
+      "later",
+      "thấp",
+      "tùy chọn",
+      "sau",
+    ],
   };
 
   lines.forEach((line) => {
@@ -376,7 +414,10 @@ function criticalPathAgent(tasks) {
   tasks.forEach((t) => {
     let deps = [];
     try {
-      deps = typeof t.dependencies === 'string' ? JSON.parse(t.dependencies || '[]') : (t.dependencies || []);
+      deps =
+        typeof t.dependencies === "string"
+          ? JSON.parse(t.dependencies || "[]")
+          : t.dependencies || [];
       if (!Array.isArray(deps)) deps = [];
     } catch (e) {
       deps = [];
@@ -392,7 +433,6 @@ function criticalPathAgent(tasks) {
       slack: 0,
     };
   });
-
 
   const sorted = topologicalSort(tasks, taskMap);
 
@@ -418,7 +458,10 @@ function criticalPathAgent(tasks) {
     const dependents = tasks.filter((other) => {
       let d = [];
       try {
-        d = typeof other.dependencies === 'string' ? JSON.parse(other.dependencies || '[]') : (other.dependencies || []);
+        d =
+          typeof other.dependencies === "string"
+            ? JSON.parse(other.dependencies || "[]")
+            : other.dependencies || [];
       } catch (e) {}
       return Array.isArray(d) && d.includes(id);
     });
@@ -438,21 +481,26 @@ function criticalPathAgent(tasks) {
   const bottlenecks = tasks.filter((t) => {
     let deps = [];
     try {
-      deps = typeof t.dependencies === 'string' ? JSON.parse(t.dependencies || '[]') : (t.dependencies || []);
+      deps =
+        typeof t.dependencies === "string"
+          ? JSON.parse(t.dependencies || "[]")
+          : t.dependencies || [];
     } catch (e) {}
     if (!Array.isArray(deps)) deps = [];
 
     const isDepOfCount = tasks.filter((other) => {
       let d = [];
       try {
-        d = typeof other.dependencies === 'string' ? JSON.parse(other.dependencies || '[]') : (other.dependencies || []);
+        d =
+          typeof other.dependencies === "string"
+            ? JSON.parse(other.dependencies || "[]")
+            : other.dependencies || [];
       } catch (e) {}
       return Array.isArray(d) && d.includes(t.id);
     }).length;
 
     return deps.length > 2 || isDepOfCount > 2;
   });
-
 
   return {
     critical_path_ids: criticalPath,
@@ -686,7 +734,7 @@ Team: ${JSON.stringify(users)}`;
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function conversationAgent(message, projectContext, chatHistory) {
-  const systemPrompt = `You are CWB Project Intelligence AI — powered by Azure AI Foundry (${DEPLOYMENT}).
+  const systemPrompt = `You are PM Intelligence AI — powered by Azure AI Foundry (${DEPLOYMENT}).
 You are an expert AI project management assistant. Answer the user's questions naturally, directly, and specifically based on the context. Do not force unnecessary structural headers unless it makes the answer clearer. Focus on providing actionable, conversational project intelligence.
 
 CRITICAL JSON REQUIREMENT: If the user asks you to adjust deadlines, or if you suggest ANY schedule changes, you MUST append a raw JSON block at the absolute end of your response to allow the frontend to apply it automatically.
@@ -786,7 +834,7 @@ function ruleBasedConversation(message, ctx) {
   ) {
     return {
       reply:
-        "I am CWB Project Intelligence AI, powered by Azure AI Foundry. I can help you analyze project risks, track task progress, simulate scenarios, optimize resources, and more. What would you like to know?",
+        "I am PM Intelligence AI, powered by Azure AI Foundry. I can help you analyze project risks, track task progress, simulate scenarios, optimize resources, and more. What would you like to know?",
       confidence: 1.0,
     };
   }
@@ -994,7 +1042,7 @@ Historical: ${JSON.stringify(historicalData)}`;
 
 async function meetingIntelligenceAgent(transcript, projectContext) {
   const systemPrompt = `You are a Meeting Intelligence AI Agent on Azure AI Foundry.
-Analyze the meeting transcript (which includes speaker diarization).
+Analyze the meeting transcript (which includes speaker diarization). Support multilingual analysis (English, Vietnamese, Japanese, etc.).
 Return JSON:
 {
   "summary": "comprehensive executive summary",
@@ -1023,29 +1071,40 @@ Generate a detailed meeting report.`;
   if (aiResult) return aiResult;
 
   // Fallback: rule-based meeting summary
-  const lines = (transcript || '').split('\n').filter(l => l.trim());
+  const lines = (transcript || "").split("\n").filter((l) => l.trim());
+  const actionWordsRegex =
+    /action:|will|should|need to|assigned|complete|fix|review|deploy|cần|phải|sẽ|giao cho|hoàn thành|sửa|xem lại|triển khai/i;
+  const decisionWordsRegex =
+    /decided|agreed|confirmed|approved|resolved|quyết định|đồng ý|xác nhận|phê duyệt/i;
+
   const actionItems = lines
-    .filter(l => /action:|will|should|need to|assigned|complete|fix|review|deploy/i.test(l))
+    .filter((l) => actionWordsRegex.test(l))
     .slice(0, 10)
-    .map(l => l.trim());
+    .map((l) => l.trim());
   const decisions = lines
-    .filter(l => /decided|agreed|confirmed|approved|resolved/i.test(l))
+    .filter((l) => decisionWordsRegex.test(l))
     .slice(0, 5)
-    .map(l => l.trim());
+    .map((l) => l.trim());
   return {
-    summary: lines.slice(0, 5).join(' ') || 'Meeting processed (rule-based fallback - Azure AI Foundry not reachable)',
+    summary:
+      lines.slice(0, 5).join(" ") ||
+      "Meeting processed (rule-based fallback - Azure AI Foundry not reachable)",
     key_takeaways: actionItems.slice(0, 3),
     decisions,
     action_items: actionItems,
     next_steps_plan: actionItems.slice(0, 3).map((a, i) => ({
       task: a,
-      owner: 'TBD',
+      owner: "TBD",
       due_date: null,
-      priority: i === 0 ? 'high' : 'medium'
+      priority: i === 0 ? "high" : "medium",
     })),
-    next_meeting: { proposed_at: null, proposed_topic: 'Follow-up', agenda: [] },
-    sentiment: 'neutral',
-    participation_score: 0.7
+    next_meeting: {
+      proposed_at: null,
+      proposed_topic: "Follow-up",
+      agenda: [],
+    },
+    sentiment: "neutral",
+    participation_score: 0.7,
   };
 }
 

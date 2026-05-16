@@ -36,7 +36,7 @@ export default function AIExtractPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h1>⚡ AI Action Extraction</h1>
+          <h1>Action Extraction</h1>
           <p>Extract structured tasks from unstructured notes, emails, and chat logs</p>
         </div>
       </div>
@@ -86,7 +86,7 @@ export default function AIExtractPage() {
           
           {pendingDrafts.length === 0 ? (
             <div className="empty-state card">
-              <div style={{ fontSize: 40, marginBottom: 8 }}>✨</div>
+              
               <div className="empty-state-title">All caught up!</div>
               <div className="empty-state-desc">No pending task drafts to review. Paste some text to generate new tasks.</div>
             </div>
@@ -113,7 +113,7 @@ export default function AIExtractPage() {
                   </div>
 
                   <div style={{ padding: 12, background: 'var(--bg-elevated)', borderRadius: 8, marginBottom: 16, fontSize: 13, color: 'var(--text-secondary)' }}>
-                    <strong>AI Summary:</strong> {draft.ai_summary}
+                    <strong>Summary:</strong> {draft.ai_summary}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>

@@ -1,422 +1,131 @@
-# 🚀 CWB Project Intelligence Platform
+# 🚀 PM Intelligence Platform
 
 > **Nền tảng quản lý dự án thông minh thế hệ mới** — được xây dựng trên hệ sinh thái Microsoft Azure, tích hợp AI đa tầng, phân tích dữ liệu real-time bằng Power BI, tự động hoá quy trình với Power Automate, và tìm kiếm ngữ nghĩa qua Azure AI Search.
 
 [![Azure](https://img.shields.io/badge/Azure-Cloud-0078D4?logo=microsoftazure)](https://azure.microsoft.com)
 [![Power BI](https://img.shields.io/badge/Power%20BI-Embedded-F2C811?logo=powerbi)](https://powerbi.microsoft.com)
-[![GitHub Actions](https://img.shields.io/badge/GitHub-Actions%20CI%2FCD-181717?logo=github)](https://github.com/features/actions)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Azure-336791?logo=postgresql)](https://azure.microsoft.com/products/postgresql)
+[![Node.js](https://img.shields.io/badge/Node.js-Backend-339933?logo=node.js)](https://nodejs.org)
+[![React](https://img.shields.io/badge/React-Frontend-61DAFB?logo=react)](https://reactjs.org)
 
 ---
 
-## 📖 Giới thiệu dự án
+## 📖 Giới thiệu
 
-**CWB Project Intelligence Platform** là ứng dụng web full-stack quản lý dự án phần mềm cấp doanh nghiệp, được xây dựng toàn bộ trên **Microsoft Azure ecosystem**. Nền tảng này kết hợp:
+**PM Intelligence Platform** là giải pháp quản lý dự án cấp doanh nghiệp (Enterprise-grade), được thiết kế để tối ưu hoá hiệu suất làm việc thông qua trí tuệ nhân tạo và phân tích dữ liệu chuyên sâu. Hệ thống không chỉ lưu trữ dữ liệu mà còn chủ động phân tích rủi ro, dự báo tiến độ và hỗ trợ ra quyết định cho cấp quản lý.
 
-- 🤖 **AI đa tầng** với Azure AI Foundry + Microsoft Agent Framework để tự động phân tích rủi ro, trích xuất task từ ngôn ngữ tự nhiên, và hỗ trợ quyết định cho Project Manager
-- 📊 **Phân tích kinh doanh** nhúng trực tiếp từ Power BI — biểu đồ tiến độ, health score, resource utilization
-- ⚡ **Tự động hoá quy trình** với Power Automate — cảnh báo rủi ro, thông báo deadline, tạo báo cáo tự động
-- 🔍 **Tìm kiếm ngữ nghĩa** qua Azure AI Search để tìm task, cuộc họp, quyết định từ hàng nghìn bản ghi
-- ☁️ **Hạ tầng đám mây Azure** đảm bảo khả năng mở rộng, bảo mật enterprise, và độ sẵn sàng cao
-
----
-
-## ✨ Tính năng chính
-
-### 🤖 AI Intelligence — Powered by Azure AI Foundry + Microsoft Agent Framework
-
-| Agent | Công nghệ | Mô tả |
-|-------|-----------|-------|
-| **Extraction Agent** | Azure AI Foundry / GPT-4o | Trích xuất tác vụ từ biên bản họp, email, yêu cầu kỹ thuật bằng ngôn ngữ tự nhiên |
-| **Risk Analysis Agent** | Microsoft Agent Framework | Phân tích rủi ro toàn dự án theo schedule, resource, scope, technical |
-| **Simulation Agent** | Azure AI Foundry | Mô phỏng "what-if": ảnh hưởng khi thêm/bớt người, thay đổi deadline |
-| **Critical Path Agent** | Microsoft Agent Framework | Tính toán critical path, phát hiện bottleneck và task gây tắc nghẽn |
-| **Resource Optimizer** | Azure AI Foundry | Gợi ý phân công lại task khi phát hiện thành viên quá tải |
-| **Standup Generator** | Azure AI Foundry | Tự động tạo agenda họp standup mỗi ngày |
-| **Behavioral Insight Agent** | Microsoft Agent Framework | Phân tích pattern làm việc, dự đoán delay của từng thành viên |
-| **Timeline Predictor** | Azure AI Foundry | Dự đoán ngày hoàn thành (optimistic / realistic / pessimistic) |
-| **Change Detection Agent** | Microsoft Agent Framework | So sánh với baseline, tóm tắt "What changed this week" |
-| **AI Assistant (Chat)** | Azure AI Foundry + Cosmos DB | Hỏi đáp hội thoại thông minh, lưu lịch sử chat vào Cosmos DB |
-
-### 📊 Dashboard & Báo cáo — Power BI Embedded
-
-- **Project Overview Dashboard** — KPI theo dõi: health score, tiến độ, số task theo trạng thái
-- **Risk Heatmap Report** — Ma trận xác suất × tác động, drill-down theo category
-- **Resource Utilization** — Workload từng thành viên theo tuần/tháng
-- **Velocity Tracking** — Tốc độ hoàn thành task theo sprint
-- **Burndown Chart** — Theo dõi effort còn lại vs. planned
-- **AI Insight Panel** — Tổng hợp phát hiện từ các AI agent trong 24h
-
-> Tất cả biểu đồ được nhúng trực tiếp qua **Power BI Embedded SDK**, cho phép người dùng tương tác, lọc, drill-down mà không rời khỏi ứng dụng.
-
-### ⚡ Tự động hoá — Power Automate
-
-| Flow | Trigger | Hành động |
-|------|---------|-----------|
-| **Daily Risk Scan** | Lịch (8:00 AM mỗi ngày) | Chạy Risk Analysis Agent → lưu kết quả → gửi email/Teams nếu rủi ro cao |
-| **Deadline Reminder** | 24h/48h trước due date | Gửi thông báo tới owner task qua email + Teams |
-| **New Task Notification** | Task được tạo từ AI Extract | Gửi tóm tắt tới project channel trên Microsoft Teams |
-| **Blocked Task Escalation** | Task chuyển sang "blocked" | Tự động escalate lên PM → tạo notification khẩn |
-| **Weekly Report** | Thứ 6 hàng tuần 17:00 | Tổng hợp tiến độ tuần → xuất PDF → gửi cho stakeholder |
-| **GitHub PR Sync** | PR merged trên GitHub | Cập nhật trạng thái task liên quan → log audit trail |
-
-### 🔍 Tìm kiếm thông minh — Azure AI Search
-
-- **Full-text search** trên toàn bộ dữ liệu: task, meeting, audit log, comment
-- **Semantic search** — hiểu ngữ nghĩa câu hỏi, không cần khớp chính xác keyword
-- **Vector search** — tìm kiếm theo embedding, phù hợp truy vấn ngôn ngữ tự nhiên kiểu "task liên quan tới authentication"
-- **Faceted filtering** — lọc theo project, priority, owner, date range, status
-- **Search Analytics** — theo dõi query phổ biến để cải thiện UX
-
-### 📁 Quản lý dự án (Core PM Features)
-
-- **Dashboard** — Tổng quan toàn bộ danh mục dự án
-- **Kanban Board** — Drag & drop task, swimlanes theo priority
-- **Gantt Chart** — Timeline trực quan, baseline vs. actual
-- **Project Detail** — Task management, members, tags, dependencies
-- **Risk Register** — Quản lý rủi ro với mitigation plan
-- **Resource Management** — Theo dõi và cân bằng workload
-- **Meeting Hub** — Lưu trữ biên bản họp, action items, upload transcript
-- **Audit Trail** — Lịch sử thay đổi toàn dự án, AI reasoning, traceability
-
-### 🔐 Bảo mật & Phân quyền
-
-- Xác thực via **Azure Active Directory (Entra ID)** — SSO cho enterprise
-- JWT stateless token với refresh mechanism
-- Role-based access: `admin`, `project_manager`, `contributor`
-- Azure-managed secrets và environment variables
+### 🌟 Điểm nhấn công nghệ
+- **AI-First Approach:** Sử dụng Azure AI Foundry và Microsoft Agent Framework để điều phối 10+ AI Agents chuyên biệt.
+- **Real-time Synchronization:** WebSocket cho thông báo và cập nhật dữ liệu tức thời.
+- **Deep Analytics:** Nhúng trực tiếp Power BI vào ứng dụng với Row-Level Security (RLS).
+- **Hybrid Search:** Kết hợp Full-text, Semantic và Vector Search thông qua Azure AI Search.
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ Tính năng cốt lõi
 
-### ☁️ Microsoft Azure Platform
+### 🤖 Hệ thống AI Agents (Multi-Agent System)
+Hệ thống sử dụng **Microsoft Agent Framework** để điều phối các tác vụ thông minh:
+- **Extraction Agent:** Tự động tạo task từ biên bản họp hoặc transcript video.
+- **Risk Analysis Agent:** Đánh giá rủi ro dựa trên tiến độ, tài nguyên và ngân sách.
+- **Simulation Agent (What-if):** Mô phỏng kịch bản thay đổi nhân sự hoặc deadline.
+- **Predictive Timeline:** Dự báo ngày hoàn thành theo 3 kịch bản (Lạc quan, Thực tế, Bi quan).
 
-| Dịch vụ | Mục đích trong dự án |
-|---------|----------------------|
-| **Azure AI Foundry** | Trung tâm quản lý và triển khai các AI model (GPT-4o, GPT-4o-mini). Build, test, deploy AI agents. Thay thế việc gọi trực tiếp OpenAI API |
-| **Microsoft Agent Framework** | Orchestration framework điều phối các AI agent (Risk, Simulation, Critical Path, Behavioral). Quản lý multi-agent workflow, memory, và tool-calling |
-| **Azure Database for PostgreSQL** | Cơ sở dữ liệu chính (Flexible Server). Lưu trữ: users, projects, tasks, risks, meetings. Hỗ trợ pgvector cho vector similarity search |
-| **Azure Cosmos DB** | NoSQL database cho dữ liệu phi cấu trúc: lịch sử chat AI, audit events, notification logs, session data. Tự động scale, multi-region |
-| **Azure AI Search** | Search engine ngữ nghĩa trên toàn bộ dữ liệu dự án. Hỗ trợ full-text, semantic, và vector search. Index tự động từ PostgreSQL và Cosmos DB |
-| **Azure Blob Storage** | Lưu trữ file uploads: biên bản họp, tài liệu dự án, transcript audio, file đính kèm. Kết hợp với SAS token bảo mật |
-| **Power BI Embedded** | Nhúng báo cáo kinh doanh tương tác vào ứng dụng. Dashboard KPI, velocity chart, risk heatmap. Token-based row-level security |
-| **Power Automate** | Tự động hoá quy trình: cảnh báo rủi ro, nhắc deadline, đồng bộ GitHub, gửi báo cáo tuần |
+### 📊 Phân tích & Dashboard (Power BI)
+- **Project Health:** Theo dõi chỉ số sức khoẻ dự án, điểm rủi ro real-time.
+- **Resource Utilization:** Biểu đồ phân bổ nguồn lực, cảnh báo quá tải.
+- **Velocity Tracking:** Đo lường tốc độ hoàn thành công việc của đội ngũ.
 
-### 🖥️ Frontend
+### ⚡ Tự động hoá (Power Automate)
+- **Daily Scans:** Tự động quét rủi ro vào 8:00 mỗi sáng.
+- **Smart Notifications:** Nhắc nhở deadline qua Email/Teams dựa trên mức độ ưu tiên.
+- **GitHub Sync:** Tự động đóng task khi Pull Request được merge.
 
-| Công nghệ | Phiên bản | Mục đích |
-|-----------|-----------|----------|
-| **React** | 19 | UI framework, component-based SPA |
-| **Vite** | 6 | Build tool siêu nhanh, Hot Module Replacement |
-| **React Router DOM** | 7 | Client-side routing, protected routes |
-| **Zustand** | 5 | Global state management (nhẹ hơn Redux) |
-| **Axios** | 1.x | HTTP client, gọi REST API backend |
-| **Power BI Client SDK** | latest | Nhúng báo cáo Power BI Embedded |
-| **@dnd-kit** | core/sortable | Drag & drop cho Kanban board |
-| **date-fns** | 4.x | Xử lý và format ngày tháng |
-| **lucide-react** | 1.x | Icon library |
-| **react-hot-toast** | 2.x | Toast notifications |
-| **Vanilla CSS** | — | Custom design system: dark mode, glassmorphism, animations |
+---
 
-### ⚙️ Backend
+## 🛠️ Hướng dẫn cài đặt
 
-| Công nghệ | Phiên bản | Mục đích |
-|-----------|-----------|----------|
-| **Node.js** | 18+ | Runtime |
-| **Express.js** | 5 | REST API framework |
-| **@azure/openai** | latest | Gọi Azure AI Foundry (GPT-4o) thay vì OpenAI trực tiếp |
-| **@azure/search-documents** | latest | SDK tích hợp Azure AI Search |
-| **@azure/storage-blob** | latest | SDK upload/download file Azure Blob |
-| **@azure/cosmos** | latest | SDK tích hợp Azure Cosmos DB |
-| **pg / node-postgres** | 8.x | Kết nối Azure Database for PostgreSQL |
-| **ws** | 8.x | WebSocket server cho real-time notifications |
-| **JSON Web Token** | 9.x | Xác thực stateless |
-| **bcryptjs** | 3.x | Hash mật khẩu |
-| **morgan** | 1.x | HTTP request logging |
-| **express-validator** | 7.x | Validate API input |
-| **dotenv** | 17.x | Quản lý biến môi trường |
-| **uuid** | 9.x | Tạo ID duy nhất |
+### 1. Chuẩn bị môi trường
+- Node.js v18+ & npm v9+
+- PostgreSQL v14+ (Hoặc Azure Database for PostgreSQL)
+- Tài khoản Azure (AI Foundry, Cosmos DB, Blob Storage, AI Search)
 
-### 🔄 CI/CD & Source Control
+### 2. Cấu hình biến môi trường
+Tạo file `.env` trong thư mục `backend/`:
+```env
+PORT=3001
+PG_HOST=your_host
+PG_USER=your_user
+PG_PASSWORD=your_password
+PG_DATABASE=cwb-project
+PG_SSL=true
 
-| Công nghệ | Mục đích |
-|-----------|----------|
-| **GitHub** | Source control, code review, pull request workflow |
-| **GitHub Actions** | CI/CD pipeline: test → build → deploy lên Azure |
-| **GitHub Environments** | Quản lý secrets và approval gate cho staging/production |
-| **Power Automate → GitHub** | Tự động cập nhật task status khi PR được merge |
+AZURE_OPENAI_ENDPOINT=...
+AZURE_OPENAI_KEY=...
+COSMOS_ENDPOINT=...
+COSMOS_KEY=...
+AZURE_STORAGE_CONNECTION_STRING=...
+AZURE_SEARCH_ENDPOINT=...
+AZURE_SEARCH_KEY=...
+
+# Power BI Credentials
+PBI_WORKSPACE_ID=...
+PBI_REPORT_ID=...
+PBI_TENANT_ID=...
+PBI_CLIENT_ID=...
+PBI_CLIENT_SECRET=...
+```
+
+### 3. Chạy ứng dụng
+```bash
+# Cài đặt
+npm install
+cd frontend && npm install
+cd ../backend && npm install
+
+# Khởi chạy Backend
+cd backend && npm start
+
+# Khởi chạy Frontend
+cd frontend && npm run dev
+```
+
+---
+
+## 📊 Hướng dẫn kết nối Power BI với Data hiện tại
+
+Hệ thống đã được thiết kế sẵn các **Database Views** tối ưu cho việc làm báo cáo. Để kết nối Power BI với dữ liệu PostgreSQL hiện tại, hãy làm theo các bước sau:
+
+### Bước 1: Kết nối Data Source
+1. Mở **Power BI Desktop**.
+2. Chọn **Get Data** > **PostgreSQL database**.
+3. Nhập thông tin Server, Database từ file `.env` của bạn.
+4. Ở phần **Data Connectivity mode**, chọn **Import** hoặc **DirectQuery** (Khuyên dùng DirectQuery để dữ liệu real-time).
+
+### Bước 2: Sử dụng các View có sẵn
+Thay vì chọn các bảng thô, hãy chọn các **Views** sau để có dữ liệu đã được xử lý logic:
+- `pbi_project_health`: Chứa thông tin tổng quan dự án, điểm rủi ro, tỉ lệ hoàn thành và tên PM.
+- `pbi_task_velocity`: Chứa chi tiết task, phân loại trạng thái (Overdue, Blocked, On Track) và thông tin người thực hiện.
+
+### Bước 3: Cấu hình Embed lên Web
+1. Publish báo cáo lên **Power BI Service (Workspaces)**.
+2. Lấy **Workspace ID** và **Report ID**.
+3. Cập nhật các ID này vào file `.env` của Backend.
+4. Ứng dụng sẽ tự động sinh **Embed Token** thông qua API `/api/powerbi/embed-token` để hiển thị biểu đồ trong trang Dashboard và Project Detail.
 
 ---
 
 ## 🏗️ Kiến trúc hệ thống
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FRONTEND (React + Vite)                  │
-│  Pages: Dashboard, Kanban, Gantt, AI Chat, Simulation, ...      │
-│  Power BI Embedded SDK  │  Zustand Store  │  WebSocket Client   │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │ REST API / WebSocket
-┌───────────────────────────────▼─────────────────────────────────┐
-│                    BACKEND (Node.js + Express)                   │
-│  Routes: /auth /projects /tasks /ai /meetings /notifications    │
-│  Middleware: JWT Auth │ Validator │ Morgan Logger               │
-│  WebSocket Server (real-time push)                              │
-└──────┬──────────┬──────────┬──────────┬──────────┬─────────────┘
-       │          │          │          │          │
-       ▼          ▼          ▼          ▼          ▼
- ┌──────────┐ ┌────────┐ ┌───────┐ ┌────────┐ ┌──────────────┐
- │Azure DB  │ │Cosmos  │ │Azure  │ │Azure   │ │Azure AI      │
- │PostgreSQL│ │  DB    │ │Blob   │ │AI      │ │Foundry +     │
- │(projects │ │(chat   │ │Storage│ │Search  │ │Agent         │
- │tasks,    │ │history,│ │(files,│ │(full-  │ │Framework     │
- │users,    │ │audit,  │ │docs,  │ │text +  │ │(10 AI agents)│
- │risks)    │ │notifs) │ │media) │ │vector) │ └──────────────┘
- └──────────┘ └────────┘ └───────┘ └────────┘
-       │
-       ▼
- ┌─────────────────────────────────────────────┐
- │           POWER PLATFORM                    │
- │  Power BI Embedded (dashboard reports)      │
- │  Power Automate (workflow automation)       │
- └─────────────────────────────────────────────┘
-       │
-       ▼
- ┌─────────────────────────────────────────────┐
- │         GITHUB + GITHUB ACTIONS             │
- │  Source control → CI/CD → Azure Deploy      │
- └─────────────────────────────────────────────┘
-```
-
-### Luồng AI Agent (Microsoft Agent Framework)
-
-```
-User Request (chat / extract / simulate)
-            │
-            ▼
-    Agent Orchestrator
-    (Microsoft Agent Framework)
-            │
-     ┌──────┼──────────────────────┐
-     ▼      ▼                      ▼
-Risk     Extraction           Simulation
-Agent    Agent                Agent
-  │          │                    │
-  └──────────┴─────┬──────────────┘
-                   ▼
-         Azure AI Foundry (GPT-4o)
-                   │
-         ┌─────────┴──────────┐
-         ▼                    ▼
-   PostgreSQL              Cosmos DB
-   (lưu kết quả)          (lưu lịch sử)
-                   │
-                   ▼
-         WebSocket → Client (real-time)
-```
-
-### Luồng Upload & Search
-
-```
-User Upload Meeting Transcript
-            │
-            ▼
-      Azure Blob Storage
-      (lưu file gốc)
-            │
-            ▼
-   Azure AI Foundry Extraction
-   (trích xuất task từ nội dung)
-            │
-            ▼
-    Azure AI Search Indexer
-    (index nội dung để search)
-            │
-            ▼
-  User tìm kiếm: "ai authentication task"
-            │
-            ▼
-   Azure AI Search (semantic)
-   → trả về kết quả liên quan nhất
-```
+Hệ thống sử dụng kiến trúc **Micro-services ready** với:
+- **Frontend:** React + Zustand + Lucide Icons.
+- **Backend:** Node.js Express + WebSocket (ws).
+- **Database:** PostgreSQL (Relational) & Cosmos DB (Document/Event Log).
+- **Storage:** Azure Blob Storage cho Transcript & Document.
 
 ---
 
-## 🚀 Hướng dẫn cài đặt & chạy
-
-### Yêu cầu
-- Node.js >= 18
-- npm >= 9
-- Azure Subscription (Free tier đủ để demo)
-- GitHub account
-
-### 1. Clone repository
-
-```bash
-git clone https://github.com/your-org/cwb-project-tracking.git
-cd cwb-project-tracking
-```
-
-### 2. Cài đặt dependencies
-
-```bash
-# Frontend
-cd frontend && npm install
-
-# Backend
-cd ../backend && npm install
-```
-
-### 3. Cấu hình Azure resources
-
-Tạo các resource trên Azure Portal hoặc dùng Azure CLI:
-
-```bash
-# Resource Group
-az group create --name cwb-project-rg --location southeastasia
-
-# PostgreSQL Flexible Server
-az postgres flexible-server create \
-  --resource-group cwb-project-rg \
-  --name cwb-postgres \
-  --database-name cwbdb \
-  --admin-user cwbadmin \
-  --admin-password <your-password>
-
-# Cosmos DB (NoSQL)
-az cosmosdb create \
-  --name cwb-cosmos \
-  --resource-group cwb-project-rg \
-  --default-consistency-level Session
-
-# Storage Account
-az storage account create \
-  --name cwbstorage \
-  --resource-group cwb-project-rg \
-  --sku Standard_LRS
-
-# Azure AI Search
-az search service create \
-  --name cwb-ai-search \
-  --resource-group cwb-project-rg \
-  --sku basic
-```
-
-### 4. Khởi động
-
-```bash
-# Terminal 1 — Backend
-cd backend && npm run dev
-
-# Terminal 2 — Frontend
-cd frontend && npm run dev
-```
-
-## 🔌 API Endpoints
-
-### Authentication
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `POST` | `/api/auth/login` | Đăng nhập, nhận JWT |
-| `POST` | `/api/auth/refresh` | Refresh access token |
-| `POST` | `/api/auth/logout` | Huỷ session |
-
-### Projects & Tasks
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `GET` | `/api/projects` | Danh sách dự án |
-| `POST` | `/api/projects` | Tạo dự án mới |
-| `GET` | `/api/projects/:id` | Chi tiết dự án |
-| `PATCH` | `/api/projects/:id` | Cập nhật dự án |
-| `GET` | `/api/tasks` | Danh sách task |
-| `POST` | `/api/tasks` | Tạo task |
-| `PATCH` | `/api/tasks/:id` | Cập nhật task |
-
-### AI Endpoints (Azure AI Foundry + Agent Framework)
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `POST` | `/api/ai/extract` | Trích xuất task từ text (AI Foundry) |
-| `POST` | `/api/ai/chat` | AI assistant hội thoại |
-| `POST` | `/api/ai/simulate` | What-if simulation |
-| `GET` | `/api/ai/risk-analysis/:id` | Phân tích rủi ro dự án |
-| `GET` | `/api/ai/critical-path/:id` | Critical path analysis |
-| `GET` | `/api/ai/resources/:id` | Resource optimization |
-| `GET` | `/api/ai/timeline/:id` | Timeline prediction |
-| `GET` | `/api/ai/standup/:id` | Generate standup agenda |
-
-### Search (Azure AI Search)
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `GET` | `/api/search?q=<query>` | Semantic search toàn hệ thống |
-| `GET` | `/api/search/tasks?q=<query>` | Tìm trong tasks |
-| `GET` | `/api/search/meetings?q=<query>` | Tìm trong biên bản họp |
-
-### Files (Azure Blob Storage)
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `POST` | `/api/files/upload` | Upload file lên Azure Blob |
-| `GET` | `/api/files/:id` | Lấy SAS URL để download |
-| `DELETE` | `/api/files/:id` | Xoá file |
-
-### Real-time
-| Protocol | Endpoint | Mô tả |
-|----------|----------|-------|
-| `WebSocket` | `ws://localhost:3001/ws?userId=<id>` | Kết nối nhận push notification |
-
-### Power BI
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `GET` | `/api/powerbi/embed-token` | Lấy embed token cho Power BI Embedded |
+## 📞 Liên hệ & Đóng góp
+Nếu bạn gặp vấn đề trong quá trình triển khai, vui lòng tạo **Issue** hoặc liên hệ đội ngũ phát triển.
 
 ---
-
-## 🔄 CI/CD với GitHub Actions
-
-```yaml
-# .github/workflows/deploy.yml
-name: CWB Platform — CI/CD to Azure
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  lint-and-build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install & Build
-        run: cd frontend && npm ci && npm run build && cd ../backend && npm ci
-
-  deploy-frontend:
-    needs: lint-and-build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_TOKEN }}
-          app_location: /frontend
-          output_location: dist
-
-  deploy-backend:
-    needs: lint-and-build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: backend
-
-  notify-power-automate:
-    needs: [deploy-frontend, deploy-backend]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Power Automate Flow
-        run: curl -X POST "${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}" -d '{"event":"deploy_success"}'
-```
-
-**Power Automate → GitHub trigger:** Mỗi khi pull request được merge trên GitHub, Power Automate flow tự động cập nhật trạng thái các task liên quan trong hệ thống.
-
----
+*© 2026 CWB Intelligence Platform. Build with 💙 on Azure.*

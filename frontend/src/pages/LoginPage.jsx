@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
 import api from '../lib/api';
+import { Brain, Plane, Send } from 'lucide-react';
 
 export default function LoginPage() {
   const [mode, setMode] = useState('login');
@@ -43,13 +44,13 @@ export default function LoginPage() {
       <div className="auth-card">
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{ width: 60, height: 60, background: 'linear-gradient(135deg, var(--primary), var(--accent))', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 16px', boxShadow: '0 0 40px var(--primary-glow)' }}>
-            🧠
+            <Brain size={24}/>
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
-            CWB Intelligence
+            PM Intelligence
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-            AI-Powered Project Intelligence Platform
+            Project Tracking Platform
           </p>
         </div>
 
@@ -66,7 +67,7 @@ export default function LoginPage() {
 
         {seeded && (
           <div style={{ background: 'var(--success-bg)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 14, color: 'var(--success)', marginBottom: 16 }}>
-            ✅ Demo data seeded! Use: admin@cwb.com / password123
+             Demo data seeded! Use: admin@cwb.com / password123
           </div>
         )}
 
@@ -104,7 +105,7 @@ export default function LoginPage() {
         <div style={{ marginTop: 24, textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 20 }}>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>New installation? Load demo data</p>
           <button className="btn btn-secondary w-full" onClick={seedData}>
-            🚀 Seed Demo Data
+            Demo Data
           </button>
         </div>
       </div>

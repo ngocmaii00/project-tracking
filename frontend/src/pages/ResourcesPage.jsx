@@ -114,7 +114,7 @@ export default function ResourcesPage() {
               "Running..."
             ) : (
               <>
-                <Zap size={16} /> AI Optimize
+                <Zap size={16} /> Optimize
               </>
             )}
           </button>
@@ -334,10 +334,10 @@ export default function ResourcesPage() {
             <div className="card empty-state" style={{ minHeight: 300 }}>
               <div style={{ fontSize: 48 }}>⚡</div>
               <div className="empty-state-title">
-                Run AI Resource Optimization
+                Run Resource Optimization
               </div>
               <div className="empty-state-desc">
-                AI will analyze workload distribution and suggest reassignments
+                The system will analyze workload distribution and suggest reassignments
                 to balance the team
               </div>
               <button
@@ -518,7 +518,7 @@ export default function ResourcesPage() {
           {!insights ? (
             <div className="card empty-state" style={{ minHeight: 300 }}>
               <div style={{ fontSize: 48 }}>🧠</div>
-              <div className="empty-state-title">AI Behavioral Insights</div>
+              <div className="empty-state-title">Behavioral Insights</div>
               <div className="empty-state-desc">
                 Analyze team patterns, detect risks, and understand performance
                 trends

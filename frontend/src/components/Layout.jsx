@@ -1,48 +1,72 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
-import useStore from '../store/useStore';
+﻿/* eslint-disable react-hooks/exhaustive-deps */
 import {
-  LayoutDashboard, FolderKanban, Brain, Calendar, AlertTriangle,
-  Users, Settings, Bell, ChevronLeft, ChevronRight, Zap,
-  MessageSquare, GitMerge, Shield, Target, LogOut, Search, Headphones
-} from 'lucide-react';
-import toast from 'react-hot-toast';
-import { formatDistanceToNow } from 'date-fns';
-import { vi } from 'date-fns/locale';
+  Outlet,
+  NavLink,
+  useLocation,
+  Link,
+  useNavigate,
+} from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import useStore from "../store/useStore";
+import { Bell, Brain, ChevronLeft, ChevronRight, Headphones } from "lucide-react";
+import toast from "react-hot-toast";
+import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
 
 const navItems = [
-  { section: 'Overview', items: [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/projects', icon: FolderKanban, label: 'Projects' },
-  ]},
-  { section: 'Collaboration', items: [
-    { to: '/chat', icon: MessageSquare, label: 'Chat Workspace' },
-    { to: '/meetings', icon: Calendar, label: 'Meetings Hub' },
-  ]},
-  { section: 'AI Tools', items: [
-    { to: '/ai/extract', icon: Brain, label: 'AI Extraction' },
-    { to: '/ai/assistant', icon: Zap, label: 'AI Assistant' },
-  ]},
+  {
+    section: "Overview",
+    items: [
+      { to: "/dashboard", label: "Dashboard" },
+      { to: "/projects", label: "Projects" },
+    ],
+  },
+  {
+    section: "Collaboration",
+    items: [
+      { to: "/chat", label: "Chat" },
+      { to: "/meetings", label: "Meetings" },
+    ],
+  },
+  {
+    section: "Tools",
+    items: [
+      { to: "/ai/extract", label: "Action Extraction" },
+      { to: "/ai/assistant", label: "Planning" },
+    ],
+  },
 ];
 
 function NavItemComp({ item, collapsed }) {
-  const Icon = item.icon;
   return (
     <NavLink
       to={item.to}
-      className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-      title={collapsed ? item.label : ''}
+      className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+      title={collapsed ? item.label : ""}
     >
-      <Icon className="nav-icon" size={18} />
+      {collapsed && <span className="nav-letter">{item.label.charAt(0)}</span>}
       {!collapsed && <span>{item.label}</span>}
-      {item.badge && !collapsed && <span className="nav-badge">{item.badge}</span>}
+      {item.badge && !collapsed && (
+        <span className="nav-badge">{item.badge}</span>
+      )}
     </NavLink>
   );
 }
 
 export default function Layout() {
-  const { user, logout, loadNotifications, loadUsers, unreadCount, notifications, markRead, markAllRead, sidebarOpen, toggleSidebar, activeMeeting } = useStore();
+  const {
+    user,
+    logout,
+    loadNotifications,
+    loadUsers,
+    unreadCount,
+    notifications,
+    markRead,
+    markAllRead,
+    sidebarOpen,
+    toggleSidebar,
+    activeMeeting,
+  } = useStore();
   const [wsConnected, setWsConnected] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef(null);
@@ -58,7 +82,7 @@ export default function Layout() {
 
   useEffect(() => {
     if (!user) return;
-    const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws';
+    const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:3001/ws";
     const ws = new WebSocket(`${WS_URL}?userId=${user.id}`);
     wsRef.current = ws;
 
@@ -67,13 +91,23 @@ export default function Layout() {
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
-        if (msg.type === 'notification') {
+        if (msg.type === "notification") {
           loadNotifications();
-          window.dispatchEvent(new CustomEvent('new_notification', { detail: msg.notification }));
-          toast.success(msg.notification?.message || 'Bạn có thông báo mới!', {
-            icon: '🔔',
-            duration: 5000
+          window.dispatchEvent(
+            new CustomEvent("new_notification", { detail: msg.notification }),
+          );
+          toast.success(msg.notification?.message || "Bạn có thông báo mới", {
+            duration: 5000,
           });
+        } else if (msg.type === "task_comment") {
+          const { handleRealtimeComment } = useStore.getState();
+          handleRealtimeComment(msg.taskId, msg.comment);
+          if (msg.comment.author_id !== user.id) {
+            toast.success(`${msg.comment.author_name} commented on a task`);
+          }
+        } else if (msg.type === "task_update") {
+          const { handleRealtimeTaskUpdate } = useStore.getState();
+          handleRealtimeTaskUpdate(msg.task);
         }
       } catch (err) {
         console.error(err);
@@ -81,10 +115,14 @@ export default function Layout() {
     };
 
     const ping = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }));
+      if (ws.readyState === WebSocket.OPEN)
+        ws.send(JSON.stringify({ type: "ping" }));
     }, 30000);
 
-    return () => { ws.close(); clearInterval(ping); };
+    return () => {
+      ws.close();
+      clearInterval(ping);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -93,21 +131,27 @@ export default function Layout() {
         setShowNotifications(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const initials = user?.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?';
+  const initials =
+    user?.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase() || "?";
 
   const handleNotificationClick = (n) => {
     if (!n.is_read) markRead(n.id);
     setShowNotifications(false);
 
     // Navigation logic based on type
-    if (n.type === 'meeting_invite') {
-      navigate('/meetings');
-    } else if (n.type === 'risk_alert' || n.type === 'task_assignment') {
-      const data = typeof n.data === 'string' ? JSON.parse(n.data) : n.data;
+    if (n.type === "meeting_invite") {
+      navigate("/meetings");
+    } else if (n.type === "risk_alert" || n.type === "task_assignment") {
+      const data = typeof n.data === "string" ? JSON.parse(n.data) : n.data;
       if (data?.projectId) {
         navigate(`/projects/${data.projectId}`);
       }
@@ -116,78 +160,148 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
-      <aside className="sidebar" style={{ width: collapsed ? '72px' : 'var(--sidebar-width)' }}>
+      <aside
+        className="sidebar"
+        style={{ width: collapsed ? "72px" : "var(--sidebar-width)" }}
+      >
         <div className="sidebar-logo">
-          <div className="logo-icon">🧠</div>
+          <div className="logo-icon"><Brain size={16} /></div>
           {!collapsed && (
             <div>
-              <div className="logo-text">CWB Intelligence</div>
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
-                {wsConnected ? '● Live' : '○ Offline'}
+              <div className="logo-text">PM Intelligence</div>
+              <div
+                style={{
+                  fontSize: "10px",
+                  color: "var(--text-muted)",
+                  marginTop: "1px",
+                }}
+              >
+                {wsConnected ? "Live" : "Offline"}
               </div>
             </div>
           )}
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map(section => (
+          {navItems.map((section) => (
             <div key={section.section}>
-              {!collapsed && <div className="nav-section-label">{section.section}</div>}
-              {section.items.map(item => <NavItemComp key={item.to} item={item} collapsed={collapsed} />)}
+              {!collapsed && (
+                <div className="nav-section-label">{section.section}</div>
+              )}
+              {section.items.map((item) => (
+                <NavItemComp key={item.to} item={item} collapsed={collapsed} />
+              ))}
             </div>
           ))}
 
           {!collapsed && <div className="nav-section-label">Settings</div>}
-          <NavLink to="/profile" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} style={{ width: '100%', textDecoration: 'none' }}>
-            <Users size={18} />
+          <NavLink
+            to="/profile"
+            className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+            style={{ width: "100%", textDecoration: "none" }}
+          >
+            {collapsed && <span className="nav-letter">P</span>}
             {!collapsed && <span>Profile</span>}
           </NavLink>
-          <button className="nav-item" onClick={logout} style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer' }}>
-            <LogOut size={18} />
+          <button
+            className="nav-item"
+            onClick={logout}
+            style={{
+              width: "100%",
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+            }}
+          >
+            {collapsed && <span className="nav-letter">L</span>}
             {!collapsed && <span>Logout</span>}
           </button>
         </nav>
 
         {!collapsed && (
-          <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="avatar avatar-sm" style={{ backgroundColor: `hsl(${user?.name?.charCodeAt(0) * 40}, 50%, 50%)`, overflow: 'hidden' }}>
-              {user?.avatar ? <img src={user.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+          <div
+            style={{
+              padding: "16px 20px",
+              borderTop: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <div
+              className="avatar avatar-sm"
+              style={{
+                backgroundColor: `hsl(${user?.name?.charCodeAt(0) * 40}, 50%, 50%)`,
+                overflow: "hidden",
+              }}
+            >
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  alt=""
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', truncate: true }}>{user?.name}</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{user?.role?.replace('_', ' ')}</div>
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  truncate: true,
+                }}
+              >
+                {user?.name}
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted)",
+                  textTransform: "capitalize",
+                }}
+              >
+                {user?.role?.replace("_", " ")}
+              </div>
             </div>
           </div>
         )}
       </aside>
 
-      <header className="topbar" style={{ left: collapsed ? '72px' : 'var(--sidebar-width)' }}>
+      <header
+        className="topbar"
+        style={{ left: collapsed ? "72px" : "var(--sidebar-width)" }}
+      >
         <button className="btn btn-ghost btn-icon" onClick={toggleSidebar}>
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
 
         <span className="topbar-title">
-          {location.pathname.split('/').filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' › ')}
+          {location.pathname
+            .split("/")
+            .filter(Boolean)
+            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+            .join(" / ")}
         </span>
 
         <div className="topbar-right">
-          {activeMeeting && !location.pathname.includes('/room') && (
-            <Link to={`/meetings/${activeMeeting.id}/room`} className="ongoing-meet-pill">
+          {activeMeeting && !location.pathname.includes("/room") && (
+            <Link
+              to={`/meetings/${activeMeeting.id}/room`}
+              className="ongoing-meet-pill"
+            >
               <Headphones size={12} className="beat-animation" />
-              <span>Meeting đang diễn ra...</span>
+              <span>Meeting đang diễn ra</span>
             </Link>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)', background: 'var(--bg-elevated)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)' }}>
-            <Zap size={12} style={{ color: 'var(--primary)' }} />
-            AI Ready
-          </div>
-
-          <div style={{ position: 'relative' }} ref={notifRef}>
+          <div style={{ position: "relative" }} ref={notifRef}>
             <button
-              className={`btn btn-ghost btn-icon ${showNotifications ? 'active' : ''}`}
+              className={`btn btn-ghost btn-icon ${showNotifications ? "active" : ""}`}
               onClick={() => setShowNotifications(!showNotifications)}
-              style={{ position: 'relative' }}
+              style={{ position: "relative" }}
             >
               <Bell size={18} />
               {unreadCount > 0 && <span className="notif-dot" />}
@@ -198,51 +312,71 @@ export default function Layout() {
                 <div className="notif-header">
                   <h3>Thông báo</h3>
                   {unreadCount > 0 && (
-                    <button className="btn-link" onClick={markAllRead}>Đánh dấu tất cả đã đọc</button>
+                    <button className="btn-link" onClick={markAllRead}>
+                      Đánh dấu đã đọc
+                    </button>
                   )}
                 </div>
                 <div className="notif-list">
                   {notifications.length > 0 ? (
-                    notifications.map(n => (
+                    notifications.map((n) => (
                       <div
                         key={n.id}
-                        className={`notif-item ${!n.is_read ? 'unread' : ''}`}
+                        className={`notif-item ${!n.is_read ? "unread" : ""}`}
                         onClick={() => handleNotificationClick(n)}
                       >
-                        <div className="notif-icon-wrapper">
-                          <Bell size={16} />
-                        </div>
                         <div className="notif-content">
                           <div className="notif-message">{n.message}</div>
                           <div className="notif-time">
-                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: vi })}
+                            {formatDistanceToNow(new Date(n.created_at), {
+                              addSuffix: true,
+                              locale: vi,
+                            })}
                           </div>
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="notif-empty">
-                      <div className="notif-empty-icon">🔔</div>
                       <p>Không có thông báo nào</p>
                     </div>
                   )}
                 </div>
                 {notifications.length > 0 && (
                   <div className="notif-footer">
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Bạn đã xem hết thông báo</span>
+                    <span
+                      style={{ fontSize: "11px", color: "var(--text-muted)" }}
+                    >
+                      Bạn đã xem hết thông báo
+                    </span>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="avatar" title={user?.name} style={{ backgroundColor: `hsl(${user?.name?.charCodeAt(0) * 40}, 50%, 50%)`, overflow: 'hidden' }}>
-            {user?.avatar ? <img src={user.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
+          <div
+            className="avatar"
+            title={user?.name}
+            style={{
+              backgroundColor: `hsl(${user?.name?.charCodeAt(0) * 40}, 50%, 50%)`,
+              overflow: "hidden",
+            }}
+          >
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                alt=""
+              />
+            ) : (
+              initials
+            )}
           </div>
         </div>
       </header>
 
-      <main className={`main-content${collapsed ? ' sidebar-collapsed' : ''}`}>
+      <main className={`main-content${collapsed ? " sidebar-collapsed" : ""}`}>
         <div className="page-content">
           <Outlet />
         </div>

@@ -18,9 +18,6 @@ import {
 import useStore from "../store/useStore";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { PowerBIEmbed } from "powerbi-client-react";
-import { models } from "powerbi-client";
-import api from "../lib/api";
 import { getAvatar } from "../lib/api";
 
 function TaskRow({ task, users, currentUser, onEdit, onDelete }) {
@@ -137,7 +134,7 @@ function TaskRow({ task, users, currentUser, onEdit, onDelete }) {
               borderRadius: 4,
             }}
           >
-            AI {Math.round(task.confidence_score * 100)}%
+            Imported {Math.round(task.confidence_score * 100)}%
           </span>
         )}
       </td>
@@ -206,9 +203,7 @@ function TaskModal({ task, project, users, currentUser, onClose, onSaved }) {
     >
       <div className="modal modal-md">
         <div className="modal-header">
-          <div className="modal-title">
-            {task ? "✏️ Edit Task" : "➕ New Task"}
-          </div>
+          <div className="modal-title">{task ? "Edit Task" : "New Task"}</div>
           <button className="btn btn-ghost btn-icon" onClick={onClose}>
             <X size={18} />
           </button>
@@ -387,7 +382,6 @@ export default function ProjectDetailPage() {
     loadProject,
     loadAnalytics,
     currentProject,
-    projectAnalytics,
     deleteTask,
     runRiskAnalysis,
     generateStandup,
@@ -409,7 +403,6 @@ export default function ProjectDetailPage() {
   });
   const [standup, setStandup] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [pbData, setPbData] = useState(null);
 
   const isManager =
     currentUser?.role === "project_manager" || currentUser?.role === "admin";
@@ -420,10 +413,6 @@ export default function ProjectDetailPage() {
       loadAnalytics(id).catch(() => null),
       loadUsers(),
     ]).finally(() => setLoading(false));
-    api
-      .get("/powerbi/embed-token")
-      .then((res) => setPbData(res.data))
-      .catch((err) => console.log("PowerBI token error:", err));
   }, [id]);
 
   const project = currentProject?.project;
@@ -432,12 +421,12 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     if (taskIdParam && tasks.length > 0 && !taskModal) {
-      const task = tasks.find(t => t.id === taskIdParam);
+      const task = tasks.find((t) => t.id === taskIdParam);
       if (task) {
         setTaskModal(task);
         // Clear the URL param without refreshing
         const newUrl = window.location.pathname;
-        window.history.replaceState({ path: newUrl }, '', newUrl);
+        window.history.replaceState({ path: newUrl }, "", newUrl);
       }
     }
   }, [taskIdParam, tasks]);
@@ -478,7 +467,6 @@ export default function ProjectDetailPage() {
       </div>
     );
 
-  const analytics = projectAnalytics;
   const pct = tasks.length
     ? Math.round(
         (tasks.filter((t) => t.status === "done").length / tasks.length) * 100,
@@ -760,7 +748,7 @@ export default function ProjectDetailPage() {
       )}
 
       <div className="tabs">
-        {["tasks", "analytics", "members"].map((t) => (
+        {["tasks", "members"].map((t) => (
           <div
             key={t}
             className={`tab${activeTab === t ? " active" : ""}`}
@@ -806,7 +794,7 @@ export default function ProjectDetailPage() {
                 <div className="empty-state-icon">📋</div>
                 <div className="empty-state-title">No tasks yet</div>
                 <div className="empty-state-desc">
-                  Add tasks manually or use AI Extraction to import from meeting
+                  Add tasks manually or use Extract Notes to import from meeting
                   notes
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>
@@ -817,220 +805,12 @@ export default function ProjectDetailPage() {
                     <Plus size={16} /> Add Task
                   </button>
                   <Link to="/ai/extract" className="btn btn-secondary">
-                    <Zap size={16} /> AI Extract
+                    <Zap size={16} /> Extract Notes
                   </Link>
                 </div>
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {activeTab === "analytics" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {pbData && pbData.token ? (
-            <div
-              className="card"
-              style={{ height: 600, padding: 0, overflow: "hidden" }}
-            >
-              <PowerBIEmbed
-                embedConfig={{
-                  type: "report", // Supported types: report, dashboard, tile, visual and qna
-                  id: pbData.reportId,
-                  embedUrl: pbData.embedUrl,
-                  accessToken: pbData.token,
-                  tokenType: models.TokenType.Embed,
-                  settings: {
-                    panes: {
-                      filters: {
-                        expanded: false,
-                        visible: false,
-                      },
-                      pageNavigation: {
-                        visible: false,
-                      },
-                    },
-                    background: models.BackgroundType.Transparent,
-                  },
-                }}
-                cssClassName={"powerbi-embed-container"}
-              />
-            </div>
-          ) : (
-            <div
-              className="card"
-              style={{
-                padding: 40,
-                textAlign: "center",
-                color: "var(--text-muted)",
-              }}
-            >
-              No PowerBI Report Configured or loading...
-            </div>
-          )}
-
-          {analytics && (
-            <>
-              <div className="grid-3">
-                {analytics.risk_analysis?.risks?.slice(0, 3).map((r, i) => (
-                  <div key={i} className="card card-sm">
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontWeight: 700,
-                          fontSize: 14,
-                          color: "var(--text-primary)",
-                        }}
-                      >
-                        {r.title}
-                      </span>
-                      <span
-                        className={`risk-score ${r.risk_score > 60 ? "risk-high" : r.risk_score > 30 ? "risk-medium" : "risk-low"}`}
-                        style={{ fontSize: 11 }}
-                      >
-                        {r.risk_score}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-muted)",
-                        marginBottom: 8,
-                      }}
-                    >
-                      {r.description}
-                    </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <span
-                        className={`badge badge-${r.category}`}
-                        style={{ textTransform: "capitalize" }}
-                      >
-                        {r.category}
-                      </span>
-                    </div>
-                    {r.mitigation && (
-                      <div
-                        style={{
-                          marginTop: 8,
-                          fontSize: 12,
-                          color: "var(--success)",
-                          background: "var(--success-bg)",
-                          padding: "6px 10px",
-                          borderRadius: 6,
-                        }}
-                      >
-                        💡 {r.mitigation}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {analytics.prediction && (
-                <div className="card">
-                  <div className="card-title" style={{ marginBottom: 16 }}>
-                    🔮 Timeline Prediction
-                  </div>
-                  <div className="grid-3">
-                    {analytics.prediction.completion_scenarios?.map((s, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          background: "var(--bg-elevated)",
-                          borderRadius: 10,
-                          padding: 16,
-                          textAlign: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            color: "var(--text-muted)",
-                            marginBottom: 8,
-                          }}
-                        >
-                          {s.scenario}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 20,
-                            fontWeight: 800,
-                            color:
-                              s.scenario === "pessimistic"
-                                ? "var(--danger)"
-                                : s.scenario === "optimistic"
-                                  ? "var(--success)"
-                                  : "var(--primary)",
-                          }}
-                        >
-                          {s.end_date
-                            ? format(new Date(s.end_date), "MMM d")
-                            : "—"}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "var(--text-muted)",
-                            marginTop: 4,
-                          }}
-                        >
-                          {Math.round(s.probability * 100)}% probability
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 16,
-                      padding: 12,
-                      background: "rgba(79,142,247,0.08)",
-                      borderRadius: 8,
-                      fontSize: 13,
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    🤖 {analytics.prediction.recommendation}
-                  </div>
-                </div>
-              )}
-
-              {analytics.critical_path && (
-                <div className="card">
-                  <div className="card-title" style={{ marginBottom: 16 }}>
-                    🔴 Critical Path (
-                    {analytics.critical_path.critical_path_ids?.length || 0}{" "}
-                    tasks)
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {analytics.critical_path.critical_path_tasks?.map((t) => (
-                      <span
-                        key={t.id}
-                        style={{
-                          background: "rgba(239,68,68,0.1)",
-                          border: "1px solid rgba(239,68,68,0.3)",
-                          color: "var(--danger)",
-                          padding: "4px 10px",
-                          borderRadius: 20,
-                          fontSize: 13,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {t.title}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
         </div>
       )}
 
@@ -1119,7 +899,11 @@ export default function ProjectDetailPage() {
                   />
 
                   <div
-                    style={{ display: "flex", alignItems: "flex-start", gap: 16 }}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 16,
+                    }}
                   >
                     <div
                       className="avatar avatar-lg"
@@ -1169,7 +953,11 @@ export default function ProjectDetailPage() {
                       </div>
 
                       <div
-                        style={{ display: "flex", alignItems: "center", gap: 12 }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                        }}
                       >
                         <div
                           style={{
@@ -1201,7 +989,9 @@ export default function ProjectDetailPage() {
                             <select
                               className="select select-sm"
                               value={m.role}
-                              onChange={(e) => changeUserRole(m.id, e.target.value)}
+                              onChange={(e) =>
+                                changeUserRole(m.id, e.target.value)
+                              }
                               style={{
                                 padding: "6px 10px 6px 30px",
                                 fontSize: 12,
@@ -1255,7 +1045,8 @@ export default function ProjectDetailPage() {
           >
             <div
               style={{
-                background: "linear-gradient(135deg, var(--primary) 0%, #4338ca 100%)",
+                background:
+                  "linear-gradient(135deg, var(--primary) 0%, #4338ca 100%)",
                 padding: "32px 24px",
                 color: "white",
               }}
@@ -1375,8 +1166,12 @@ export default function ProjectDetailPage() {
                   }
                 >
                   <option value="viewer">Viewer (Read Only)</option>
-                  <option value="contributor">Contributor (Can Edit Tasks)</option>
-                  <option value="project_manager">Manager (Project Lead)</option>
+                  <option value="contributor">
+                    Contributor (Can Edit Tasks)
+                  </option>
+                  <option value="project_manager">
+                    Manager (Project Lead)
+                  </option>
                   <option value="admin">Admin (System Wide)</option>
                 </select>
               </div>

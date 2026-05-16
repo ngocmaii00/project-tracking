@@ -77,7 +77,7 @@ export default function AuditTrailPage() {
               <div style={{ fontSize: 40, marginBottom: 16 }}>🔍</div>
               <div className="empty-state-title">Detect Meaningful Changes</div>
               <div className="empty-state-desc">
-                AI will compare current tasks against the project baseline to
+                The system will compare current tasks against the project baseline to
                 highlight delays, scope creep, and resource shifts.
               </div>
             </div>
@@ -100,7 +100,7 @@ export default function AuditTrailPage() {
                   }}
                 >
                   <div style={{ fontSize: 24 }}>🤖</div>
-                  <div className="card-title">AI Summary</div>
+                  <div className="card-title">Summary</div>
                 </div>
                 <div
                   style={{

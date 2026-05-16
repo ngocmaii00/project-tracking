@@ -167,6 +167,15 @@ router.put('/:id', authenticate, async (req, res) => {
     }
 
     const updated = await queryOne('SELECT t.*, u.name as owner_name, u.avatar as owner_avatar FROM tasks t LEFT JOIN users u ON t.owner_id = u.id WHERE t.id = $1', [req.params.id]);
+    
+    // Broadcast task update
+    if (req.app.locals.broadcast) {
+      req.app.locals.broadcast({
+        type: 'task_update',
+        task: updated
+      });
+    }
+
     res.json({ task: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -205,6 +214,16 @@ router.post('/:id/comments', authenticate, async (req, res) => {
       [id, req.params.id, task.project_id, req.user.id, content, JSON.stringify(mentions || [])]);
     
     const comment = await queryOne('SELECT c.*, u.name as author_name, u.avatar as author_avatar FROM comments c LEFT JOIN users u ON c.author_id = u.id WHERE c.id = $1', [id]);
+    
+    // Broadcast for real-time
+    if (req.app.locals.broadcast) {
+      req.app.locals.broadcast({
+        type: 'task_comment',
+        taskId: req.params.id,
+        comment
+      });
+    }
+
     res.status(201).json({ comment });
   } catch (err) {
     res.status(500).json({ error: err.message });

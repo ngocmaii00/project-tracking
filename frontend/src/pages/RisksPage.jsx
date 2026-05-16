@@ -31,7 +31,7 @@ export default function RisksPage() {
           <p>{currentProject?.project?.name} · Active risk tracking</p>
         </div>
         <button className="btn btn-primary" onClick={handleAnalysis} disabled={aiProcessing}>
-          {aiProcessing ? <><div className="ai-dot" /><div className="ai-dot" /><div className="ai-dot" /> Analyzing...</> : <><Zap size={16} /> AI Risk Scan</>}
+          {aiProcessing ? <><div className="ai-dot" /><div className="ai-dot" /><div className="ai-dot" /> Analyzing...</> : <><Zap size={16} /> Risk Scan</>}
         </button>
       </div>
 
@@ -60,7 +60,7 @@ export default function RisksPage() {
         <div className="empty-state card">
           <Shield size={48} style={{ color: 'var(--success)', opacity: 0.5, marginBottom: 16 }} />
           <div className="empty-state-title">No risks found</div>
-          <div className="empty-state-desc">The project looks healthy. Run an AI Risk Scan to detect hidden issues like resource overload or schedule conflicts.</div>
+          <div className="empty-state-desc">The project looks healthy. Run an Risk Scan to detect hidden issues like resource overload or schedule conflicts.</div>
           <button className="btn btn-primary" onClick={handleAnalysis}><Zap size={16} /> Run Full Scan</button>
         </div>
       ) : (
@@ -96,7 +96,7 @@ export default function RisksPage() {
               </div>
 
               <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', padding: 12, borderRadius: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>🛡️ AI Mitigation Strategy</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>🛡️ Mitigation Strategy</div>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                   {r.mitigation || 'No strategy defined.'}
                 </div>

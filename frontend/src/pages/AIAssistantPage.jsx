@@ -38,10 +38,19 @@ export default function AIAssistantPage() {
   useEffect(() => {
     if (aiConversations && aiConversations.length === 0) {
       createNewAiChat();
-    } else if (!activeAiConversationId && aiConversations && aiConversations.length > 0) {
+    } else if (
+      !activeAiConversationId &&
+      aiConversations &&
+      aiConversations.length > 0
+    ) {
       setActiveAiChat(aiConversations[0].id);
     }
-  }, [aiConversations, activeAiConversationId, createNewAiChat, setActiveAiChat]);
+  }, [
+    aiConversations,
+    activeAiConversationId,
+    createNewAiChat,
+    setActiveAiChat,
+  ]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -67,8 +76,14 @@ export default function AIAssistantPage() {
     setLoading(true);
 
     try {
-      const historyItems = messages.slice(-5).map(({ role, content }) => ({ role, content }));
-      const res = await chat(userMsg.content, projectId || undefined, historyItems);
+      const historyItems = messages
+        .slice(-5)
+        .map(({ role, content }) => ({ role, content }));
+      const res = await chat(
+        userMsg.content,
+        projectId || undefined,
+        historyItems,
+      );
 
       updateAiChatMessages(
         activeChat.id,
@@ -364,7 +379,7 @@ export default function AIAssistantPage() {
               </div>
               <div>
                 <div style={{ fontWeight: 800, color: "#fff", fontSize: 16 }}>
-                  AI Plan Optimization Ready
+                  Plan Optimization Ready
                 </div>
                 <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                   Click to review and apply the new project schedule
@@ -442,7 +457,7 @@ export default function AIAssistantPage() {
                 boxShadow: "var(--shadow-glow)",
               }}
             >
-              <Zap size={18} fill="white" /> New Intelligence
+              <Zap size={18} fill="white" /> New Session
             </button>
           </div>
 
@@ -756,7 +771,7 @@ export default function AIAssistantPage() {
             </div>
             <div>
               <h1 style={{ fontSize: 18, marginBottom: 2, fontWeight: 800 }}>
-                CWB Project Intelligence
+                PM Intelligence
               </h1>
               <div
                 style={{
@@ -776,7 +791,7 @@ export default function AIAssistantPage() {
                     boxShadow: "0 0 8px var(--success)",
                   }}
                 ></div>{" "}
-                AI Foundry Online
+                Assistant Online
               </div>
             </div>
           </div>
@@ -868,8 +883,8 @@ export default function AIAssistantPage() {
                   marginBottom: 32,
                 }}
               >
-                Tôi có thể giúp bạn phân tích rủi ro, dự đoán tiến độ, tối ưu hóa
-                nguồn lực hoặc đơn giản là trả lời các câu hỏi về dự án.
+                Tôi có thể giúp bạn phân tích rủi ro, dự đoán tiến độ, tối ưu
+                hóa nguồn lực hoặc đơn giản là trả lời các câu hỏi về dự án.
               </p>
 
               <div
@@ -1100,7 +1115,7 @@ export default function AIAssistantPage() {
               marginTop: 16,
             }}
           >
-            CWB Intelligence Engine 2.1 • Decision Support System
+            PM Intelligence Engine 2.1 • Decision Support System
           </div>
         </div>
       </div>

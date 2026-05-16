@@ -17,146 +17,124 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { models } from "powerbi-client";
 import { PowerBIEmbed } from "powerbi-client-react";
-import axios from "axios";
+import api from "../lib/api";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
-
-function PowerBIPanel({ pageName, height = 450 }) {
-  const [embedConfig, setEmbedConfig] = useState(null);
-  const [pbiError, setPbiError] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const navigatedPageRef = useRef(null);
+function PowerBIPanel({ embedConfig, pageName, height = 450, loading, pbiError }) {
+  const [availablePages, setAvailablePages] = useState([]);
+  const [reportObj, setReportObj] = useState(null);
+  const [currentPage, setCurrentPage] = useState("");
 
   useEffect(() => {
-    navigatedPageRef.current = null;
-    const token = localStorage.getItem("cwb_token");
-    axios
-      .get(`${API_URL}/powerbi/embed-token`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then(({ data }) => {
-        if (!data.configured) {
-          setPbiError(data.message);
-          return;
-        }
-        setEmbedConfig({
-          type: "report",
-          id: data.reportId,
-          embedUrl: data.embedUrl,
-          accessToken: data.embedToken,
-          tokenType: models.TokenType.Embed,
-          settings: {
-            panes: {
-              filters: { visible: false },
-              pageNavigation: { visible: false },
-            },
-            background: models.BackgroundType.Transparent,
-            layoutType: models.LayoutType.Custom,
-            customLayout: {
-              displayOption: models.DisplayOption.FitToWidth,
-            },
-          },
-        });
-      })
-      .catch(() => setPbiError("Failed to load Power BI report"))
-      .finally(() => setLoading(false));
-  }, [pageName]);
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          height,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div className="ai-thinking">
-          <div className="ai-dot" />
-          <div className="ai-dot" />
-          <div className="ai-dot" />
-          <span>Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (pbiError) {
-    return (
-      <div
-        style={{
-          height,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          {pbiError}
-        </div>
-      </div>
-    );
-  }
+    if (reportObj && availablePages.length > 0) {
+      const targetName = (pageName || "").toLowerCase().trim();
+      const target = availablePages.find(p => 
+        p.displayName.toLowerCase().trim().includes(targetName) ||
+        p.name.toLowerCase().trim().includes(targetName)
+      );
+      if (target && currentPage !== target.name) {
+        reportObj.setPage(target.name).catch(console.error);
+        setCurrentPage(target.name);
+      }
+    }
+  }, [reportObj, availablePages, pageName]);
 
   return (
-    <div
-      className="powerbi-embed-container"
-      style={{ height, overflow: "hidden", position: "relative" }}
-    >
-      <div
-        style={{
-          width: "100%",
-          height: "calc(100% + 50px)",
-          marginTop: "-50px",
-        }}
-      >
-        <PowerBIEmbed
-          embedConfig={embedConfig}
-          cssClassName="powerbi-embed"
-          getEmbeddedComponent={(report) => {
-            report.on("rendered", async () => {
-              if (navigatedPageRef.current === pageName) return;
-              try {
-                const pages = await report.getPages();
-                const targetPage = pages.find(
-                  (p) =>
-                    p.displayName.toLowerCase().trim() ===
-                    (pageName || "").toLowerCase().trim(),
-                );
-                if (targetPage) {
-                  navigatedPageRef.current = pageName;
-                  await report.setPage(targetPage.name);
-                }
-              } catch (err) {
-                console.error("Error in PowerBI transition:", err);
-              }
-            });
-          }}
-          eventHandlers={
-            new Map([["error", (e) => console.error("PowerBI error:", e)]])
-          }
-        />
+    <div className="powerbi-embed-container" style={{ height, overflow: "hidden", position: "relative" }}>
+      {/* Diagnostic Header */}
+      <div style={{ 
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, 
+        background: '#f8f9fa', padding: '6px 12px', 
+        display: 'flex', alignItems: 'center', gap: 12, fontSize: '12px',
+        borderBottom: '1px solid #e9ecef',
+        color: '#495057'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontWeight: 600, color: '#6c757d' }}>Page:</span>
+          <select 
+            value={currentPage} 
+            onChange={(e) => {
+              const name = e.target.value;
+              setCurrentPage(name);
+              if (reportObj) reportObj.setPage(name);
+            }}
+            style={{ 
+              fontSize: '11px', 
+              padding: '2px 6px', 
+              borderRadius: '4px',
+              border: '1px solid #dee2e6',
+              background: '#fff',
+              outline: 'none'
+            }}
+          >
+            <option value="">-- Select Page --</option>
+            {availablePages.map(p => (
+              <option key={p.name} value={p.name}>{p.displayName}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ color: '#adb5bd' }}>Target:</span>
+          <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{pageName}</span>
+        </div>
       </div>
+
+      {loading ? (
+        <div style={{ height, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="ai-thinking">
+            {[1, 2, 3].map(i => <div key={i} className="ai-dot" />)}
+            <span>Loading...</span>
+          </div>
+        </div>
+      ) : pbiError ? (
+        <div style={{ height, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{pbiError}</div>
+        </div>
+      ) : (
+        <div style={{ width: "100%", height: "calc(100% - 34px)", marginTop: '34px' }}>
+          <PowerBIEmbed
+            embedConfig={{
+              ...embedConfig,
+              settings: {
+                ...embedConfig?.settings,
+                pageNavigation: { visible: false }
+              }
+            }}
+            cssClassName="powerbi-embed"
+            getEmbeddedComponent={(embeddedReport) => {
+              setReportObj(embeddedReport);
+              embeddedReport.on("rendered", async () => {
+                const pages = await embeddedReport.getPages();
+                setAvailablePages(pages);
+                const active = await embeddedReport.getActivePage();
+                if (active) setCurrentPage(active.name);
+              });
+            }}
+            eventHandlers={new Map([
+              ["error", (e) => console.error("PowerBI error:", e)]
+            ])}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Azure AI Search Bar ──────────────────────────────────────────────────────
+// ─── Search Bar ──────────────────────────────────────────────────────
 function GlobalSearchBar() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searchedQuery, setSearchedQuery] = useState("");
   const debounceRef = useRef(null);
 
   const goToResult = (r) => {
     setQuery("");
     setResults([]);
-    if (r.type === 'task') {
+    setSearchedQuery("");
+    if (r.type === "task") {
       navigate(`/projects/${r.projectId}?taskId=${r.id}`);
-    } else if (r.type === 'meeting') {
+    } else if (r.type === "meeting") {
       navigate(`/meetings`); // Or `/meetings/${r.id}` if a detail page exists
     }
   };
@@ -166,22 +144,21 @@ function GlobalSearchBar() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (q.length < 2) {
       setResults([]);
+      setSearchedQuery("");
       return;
     }
 
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const token = localStorage.getItem("cwb_token");
-        const { data } = await axios.get(
-          `${API_URL}/search?q=${encodeURIComponent(q)}&top=6`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        const { data } = await api.get("/search", {
+          params: { q, top: 6 },
+        });
         setResults(data.results || []);
+        setSearchedQuery(q);
       } catch {
         setResults([]);
+        setSearchedQuery(q);
       } finally {
         setSearching(false);
       }
@@ -208,7 +185,7 @@ function GlobalSearchBar() {
         <input
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Azure AI Search — tìm task, meeting, quyết định..."
+          placeholder="Search..."
           style={{
             flex: 1,
             background: "transparent",
@@ -228,7 +205,7 @@ function GlobalSearchBar() {
           />
         )}
       </div>
-      {results.length > 0 && (
+      {(results.length > 0 || searchedQuery) && (
         <div
           style={{
             position: "absolute",
@@ -244,7 +221,17 @@ function GlobalSearchBar() {
             overflow: "hidden",
           }}
         >
-          {results.map((r) => (
+          {results.length === 0 && searchedQuery ? (
+            <div
+              style={{
+                padding: "14px",
+                color: "var(--text-muted)",
+                fontSize: 13,
+              }}
+            >
+              No tasks or meetings found for "{searchedQuery}".
+            </div>
+          ) : results.map((r) => (
             <div
               key={r.id}
               style={{
@@ -312,6 +299,17 @@ function GlobalSearchBar() {
                   {r.content}
                 </div>
               )}
+              {(r.projectName || r.ownerName) && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--text-muted)",
+                    marginTop: 4,
+                  }}
+                >
+                  {[r.projectName, r.ownerName].filter(Boolean).join(" / ")}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -327,10 +325,43 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview"); // 'overview' | 'powerbi'
 
+  const [pbiConfig, setPbiConfig] = useState(null);
+  const [pbiLoading, setPbiLoading] = useState(true);
+  const [pbiError, setPbiError] = useState(null);
+
   useEffect(() => {
     Promise.all([loadProjects(), loadNotifications()]).then(() =>
       setLoading(false),
     );
+
+    // Fetch Power BI token once for all panels
+    const fetchPbiToken = async () => {
+      try {
+        const { data } = await api.get("/powerbi/embed-token");
+        if (!data.configured) {
+          setPbiError(data.message);
+        } else {
+          setPbiConfig({
+            type: "report",
+            id: data.reportId,
+            embedUrl: data.embedUrl,
+            accessToken: data.embedToken,
+            tokenType: models.TokenType.Embed,
+            settings: {
+              panes: { filters: { visible: false }, pageNavigation: { visible: false } },
+              background: models.BackgroundType.Transparent,
+              layoutType: models.LayoutType.Custom,
+              customLayout: { displayOption: models.DisplayOption.FitToPage },
+            },
+          });
+        }
+      } catch {
+        setPbiError("Failed to load Power BI reports");
+      } finally {
+        setPbiLoading(false);
+      }
+    };
+    fetchPbiToken();
   }, []);
 
   const stats = useMemo(() => {
@@ -343,14 +374,21 @@ export default function DashboardPage() {
         highRiskProjects: 0,
       };
     return {
-      allTasks: projects.reduce((acc, p) => acc + (p.total_tasks || 0), 0),
-      doneTasks: projects.reduce((acc, p) => acc + (p.done_tasks || 0), 0),
+      allTasks: projects.reduce(
+        (acc, p) => acc + Number(p.total_tasks || 0),
+        0,
+      ),
+      doneTasks: projects.reduce(
+        (acc, p) => acc + Number(p.done_tasks || 0),
+        0,
+      ),
       blockedTasks: projects.reduce(
-        (acc, p) => acc + (p.blocked_tasks || 0),
+        (acc, p) => acc + Number(p.blocked_tasks || 0),
         0,
       ),
       activeProjects: projects.filter((p) => p.status === "active").length,
-      highRiskProjects: projects.filter((p) => (p.risk_score || 0) > 60).length,
+      highRiskProjects: projects.filter((p) => Number(p.risk_score || 0) > 60)
+        .length,
     };
   }, [projects]);
 
@@ -386,16 +424,16 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
-          <h1>Welcome back, {user?.name?.split(" ")[0]} 👋</h1>
+          <h1>Welcome back, {user?.name} </h1>
           <p>
-            {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })} · {stats.activeProjects}{" "}
-            active projects
+            {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })} ·{" "}
+            {stats.activeProjects} active projects
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <GlobalSearchBar />
           <Link to="/ai/extract" className="btn btn-primary">
-            <Zap size={16} /> AI Extract
+            <Zap size={16} /> Extract Notes
           </Link>
         </div>
       </div>
@@ -427,92 +465,166 @@ export default function DashboardPage() {
               color: activeTab === tab ? "#fff" : "var(--text-muted)",
             }}
           >
-            {tab === "overview" ? "📋 Overview" : "📊 Power BI Reports"}
+            {tab === "overview" ? "Overview" : "Power BI Reports"}
           </button>
         ))}
       </div>
 
       {activeTab === "powerbi" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {/* Main Task Analytics - Full Width */}
+          <div
+            className="card card-pbi"
+            style={{
+              overflow: "hidden",
+              height: 720,
+              backgroundColor: "white",
+              boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+            }}
+          >
+            <div
+              className="card-header"
+              style={{
+                borderBottom: "1px solid #f0f0f0",
+                padding: "14px 20px",
+              }}
+            >
+              <span className="card-title-powerBI">
+                <BarChart2 size={18} /> Task Distribution & Timeline
+              </span>
+              <span className="badge badge-primary">Main Report</span>
+            </div>
+            <PowerBIPanel
+              embedConfig={pbiConfig}
+              pageName="Task"
+              height={650}
+              loading={pbiLoading}
+              pbiError={pbiError}
+            />
+          </div>
+
           <div className="grid-2">
-            <div className="card card-pbi" style={{ overflow: "hidden", height: 420, backgroundColor: "white", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.3)" }}>
-              <div className="card-header" style={{ borderBottom: "1px solid #f0f0f0", padding: "12px 20px" }}>
+            {/* Status Chart */}
+            <div
+              className="card card-pbi"
+              style={{
+                overflow: "hidden",
+                height: 580,
+                backgroundColor: "white",
+                boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div
+                className="card-header"
+                style={{
+                  borderBottom: "1px solid #f0f0f0",
+                  padding: "14px 20px",
+                }}
+              >
                 <span className="card-title-powerBI">
-                  <BarChart2 size={18} /> Project Health Dashboard
-                </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#0078D4",
-                    background: "rgba(0,120,212,0.1)",
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px"
-                  }}
-                >
-                  Live Data
+                  <RefreshCw size={18} /> Workflow Status
                 </span>
               </div>
               <PowerBIPanel
-                reportName="Project Health"
-                pageName="ProgressPage"
+                embedConfig={pbiConfig}
+                pageName="Status"
                 height={420}
+                loading={pbiLoading}
+                pbiError={pbiError}
               />
             </div>
-            <div className="card card-pbi" style={{ overflow: "hidden", height: 420, backgroundColor: "white", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.3)" }}>
-              <div className="card-header" style={{ borderBottom: "1px solid #f0f0f0", padding: "12px 20px" }}>
+
+            {/* Priority Chart */}
+            <div
+              className="card card-pbi"
+              style={{
+                overflow: "hidden",
+                height: 580,
+                backgroundColor: "white",
+                boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div
+                className="card-header"
+                style={{
+                  borderBottom: "1px solid #f0f0f0",
+                  padding: "14px 20px",
+                }}
+              >
                 <span className="card-title-powerBI">
-                  <BarChart2 size={18} /> Risk & Resource Report
-                </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#0078D4",
-                    background: "rgba(0,120,212,0.1)",
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px"
-                  }}
-                >
-                  Analysis
+                  <Zap size={18} /> Priority Breakdown
                 </span>
               </div>
               <PowerBIPanel
-                reportName="Risk & Resource"
-                pageName="RiskPage"
+                embedConfig={pbiConfig}
+                pageName="Priority"
                 height={420}
+                loading={pbiLoading}
+                pbiError={pbiError}
               />
             </div>
           </div>
-          <div className="card card-pbi" style={{ overflow: "hidden", height: 750, backgroundColor: "white", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.3)" }}>
-            <div className="card-header" style={{ borderBottom: "1px solid #f0f0f0", padding: "12px 20px" }}>
-              <span className="card-title-powerBI">
-                <BarChart2 size={18} /> Velocity & Burndown Chart
-              </span>
-              <span
+
+          <div className="grid-2">
+            {/* Risk Chart */}
+            <div
+              className="card card-pbi"
+              style={{
+                overflow: "hidden",
+                height: 580,
+                backgroundColor: "white",
+                boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div
+                className="card-header"
                 style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "#0078D4",
-                  background: "rgba(0,120,212,0.1)",
-                  padding: "3px 8px",
-                  borderRadius: 4,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px"
+                  borderBottom: "1px solid #f0f0f0",
+                  padding: "14px 20px",
                 }}
               >
-                Sprint Metrics
-              </span>
+                <span className="card-title-powerBI">
+                  <AlertTriangle size={18} /> Risk Assessment
+                </span>
+              </div>
+              <PowerBIPanel
+                embedConfig={pbiConfig}
+                pageName="Risk"
+                height={420}
+                loading={pbiLoading}
+                pbiError={pbiError}
+              />
             </div>
-            <PowerBIPanel
-              reportName="Velocity Burndown"
-              pageName="VelocityPage"
-              height={650}
-            />
+
+            {/* Completed Chart */}
+            <div
+              className="card card-pbi"
+              style={{
+                overflow: "hidden",
+                height: 580,
+                backgroundColor: "white",
+                boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div
+                className="card-header"
+                style={{
+                  borderBottom: "1px solid #f0f0f0",
+                  padding: "14px 20px",
+                }}
+              >
+                <span className="card-title-powerBI">
+                  <CheckCircle size={18} /> Completion Velocity
+                </span>
+              </div>
+              <PowerBIPanel
+                embedConfig={pbiConfig}
+                pageName="Completed"
+                height={420}
+                loading={pbiLoading}
+                pbiError={pbiError}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -551,7 +663,7 @@ export default function DashboardPage() {
             <div className="stat-card accent">
               <div className="stat-label">Open Risks</div>
               <div className="stat-value">
-                {projects.reduce((a, p) => a + (p.open_risks || 0), 0)}
+                {projects.reduce((a, p) => a + Number(p.open_risks || 0), 0)}
               </div>
               <div className="stat-sub">Across all projects</div>
             </div>
@@ -759,7 +871,9 @@ export default function DashboardPage() {
                         marginTop: 4,
                       }}
                     >
-                      {format(new Date(n.created_at), "dd/MM/yyyy, HH:mm", { locale: vi })}
+                      {format(new Date(n.created_at), "dd/MM/yyyy, HH:mm", {
+                        locale: vi,
+                      })}
                     </div>
                   </div>
                 ))}
@@ -798,10 +912,10 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Link to="/ai/extract" className="btn btn-secondary btn-sm">
-                    <Zap size={14} /> AI Extract
+                    <Zap size={14} /> Extract Notes
                   </Link>
                   <Link to="/ai/assistant" className="btn btn-secondary btn-sm">
-                    <Shield size={14} /> AI Chat
+                    <Shield size={14} /> Assistant
                   </Link>
                   <Link to="/meetings" className="btn btn-secondary btn-sm">
                     <Calendar size={14} /> Meetings
@@ -817,7 +931,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Azure AI tip banner */}
+          {/* Workflow tip banner */}
           <div
             className="card"
             style={{
@@ -849,13 +963,13 @@ export default function DashboardPage() {
                     marginBottom: 2,
                   }}
                 >
-                  Azure AI Foundry — Tip
+                  Workflow automation — Tip
                 </div>
                 <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-                  Paste meeting notes in <strong>AI Extraction</strong> to
-                  auto-create tasks via Azure AI Foundry. Use{" "}
+                  Paste meeting notes in <strong>Extract Notes</strong> to
+                  create tasks via Workflow automation. Use{" "}
                   <strong>Power BI tab</strong> for full analytics. Search
-                  across all data with <strong>Azure AI Search</strong>.
+                  across all data with <strong>Search</strong>.
                 </div>
               </div>
               <Link
@@ -863,7 +977,7 @@ export default function DashboardPage() {
                 className="btn btn-primary btn-sm"
                 style={{ flexShrink: 0 }}
               >
-                Try AI Chat
+                Try Assistant
               </Link>
             </div>
           </div>
